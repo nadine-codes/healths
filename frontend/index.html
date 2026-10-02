@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HealthSurface</title></head>
+<body><h1>HealthSurface</h1><p>Health news, funding and jobs, labeled by source type.</p>
+<p>This is a reading list, not medical advice.</p><p id="api">Checking API...</p>
+<script>fetch('/api/health').then(r=>r.json()).then(j=>{document.getElementById('api').textContent='API: '+(j.ok?'ok':'error')})</script>
+</body></html>

@@ -1,0 +1,38 @@
+## aws sts get-caller-identity (2026-10-02T23:46:22Z)
+{
+    "UserId": "555300501055",
+    "Account": "555300501055",
+    "Arn": "arn:aws:iam::555300501055:root"
+}
+
+## Bedrock Nova foundation models in us-east-1
+amazon.nova-2-multimodal-embeddings-v1:0	ACTIVE
+amazon.nova-pro-v1:0	ACTIVE
+amazon.nova-pro-v1:0:24k	ACTIVE
+amazon.nova-pro-v1:0:300k	ACTIVE
+amazon.nova-2-lite-v1:0	ACTIVE
+amazon.nova-2-lite-v1:0:256k	ACTIVE
+amazon.nova-2-sonic-v1:0	ACTIVE
+amazon.nova-lite-v1:0:24k	ACTIVE
+amazon.nova-lite-v1:0:300k	ACTIVE
+amazon.nova-lite-v1:0	ACTIVE
+amazon.nova-micro-v1:0:24k	ACTIVE
+amazon.nova-micro-v1:0:128k	ACTIVE
+amazon.nova-micro-v1:0	ACTIVE
+
+## Nova inference profiles
+us.amazon.nova-premier-v1:0	ACTIVE
+global.amazon.nova-2-lite-v1:0	ACTIVE
+us.amazon.nova-micro-v1:0	ACTIVE
+us.amazon.nova-2-lite-v1:0	ACTIVE
+us.amazon.nova-lite-v1:0	ACTIVE
+us.amazon.nova-pro-v1:0	ACTIVE
+## Nova Micro test call (2026-10-02T23:46:34Z)
+
+aws: [ERROR]: An error occurred (AccessDeniedException) when calling the Converse operation: Your account is currently being verified. Verification normally takes less than 2 hours. Until your account is verified, you may not have access to this operation. If you are still receiving this message after more than 2 hours, please let us know by writing to aws-verification@amazon.com. We appreciate your patience.
+
+## AWS Budget
+None
+
+## AWS Budget (2026-10-02T23:46:46Z)
+healthsurface-25	25.0	MONTHLY

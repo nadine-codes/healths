@@ -1,0 +1,65 @@
+{
+  "sectors": [
+    "Health Tech",
+    "Med Tech",
+    "Life Sciences and Biotech",
+    "Pharma",
+    "Supplements and Nutraceuticals",
+    "Peptides",
+    "Health AI",
+    "Health Data and IT",
+    "Care Delivery and Payers",
+    "Policy and Regulation"
+  ],
+  "focus_areas": [
+    "Longevity and healthspan",
+    "Hormones",
+    "Sleep",
+    "Fitness and recovery",
+    "Women's health",
+    "Men's health",
+    "Metabolic health and obesity",
+    "Diabetes",
+    "Nutrition and gut health",
+    "Mental health",
+    "Neurology and brain health",
+    "Cardiovascular",
+    "Cancer and oncology",
+    "Immunology and autoimmune",
+    "Infectious disease",
+    "Skin and dermatology",
+    "Pain and chronic conditions",
+    "Genetics and precision medicine",
+    "Pediatrics and family health",
+    "Senior care"
+  ],
+  "evidence_labels": {
+    "Press release": "Written by the company or institution itself to announce something.",
+    "Preprint": "A research paper shared before peer review. Findings may change.",
+    "Peer-reviewed study": "Research published in a journal after review by other experts.",
+    "Regulatory action": "An official action or notice from a regulator such as the FDA.",
+    "Reported news": "A story written by a news outlet about events or announcements."
+  },
+  "round_stages": [
+    "Pre-seed",
+    "Seed",
+    "Series A",
+    "Series B",
+    "Series C or later",
+    "Growth",
+    "IPO",
+    "Acquisition",
+    "Grant"
+  ],
+  "function_groups": {
+    "Design": ["UX/UI Product Designer", "Brand Designer", "Graphic Designer", "Marketing Designer", "UX Researcher"],
+    "Engineering": ["Software Engineer", "UI Engineer", "AI Engineer", "Data and Analytics", "DevOps and Security", "QA and Test"],
+    "Product": ["Product Manager", "Project or Program Manager"],
+    "Marketing and Content": ["Growth and Lifecycle Marketing", "Product Marketing", "Content and Editorial", "Social Media and Community", "PR and Communications"],
+    "Sales and Customer": ["Sales", "Account Manager", "Customer Success Manager", "Implementation and Onboarding", "Customer Support", "Partnerships and Business Development", "Solutions and Sales Engineering"],
+    "Clinical and Health": ["Clinical Product Specialist", "Clinical Operations", "Medical Affairs and Science", "Medical Writing and Content", "Regulatory and Quality", "Health Informatics"],
+    "Operations and Business": ["Operations and Strategy", "Finance and Accounting", "People and Recruiting", "Legal and Compliance", "Executive and Admin"]
+  },
+  "employment_types": ["Full-time", "Part-time", "Contract", "Freelance", "Internship"],
+  "seniority": ["Intern", "Entry", "Mid", "Senior", "Lead", "Manager", "Director", "Executive"]
+}

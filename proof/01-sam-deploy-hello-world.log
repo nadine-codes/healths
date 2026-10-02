@@ -1,0 +1,224 @@
+
+	Managed S3 bucket: aws-sam-cli-managed-default-samclisourcebucket-tmvevqolnhe4
+	Auto resolution of buckets can be turned off by setting resolve_s3=False
+	To use a specific S3 bucket, set --s3-bucket=<bucket_name>
+	Above settings can be stored in samconfig.toml
+
+	File with same data already exists at 9f4f813782bae0e5b3e97c39b51fd33b, skipping upload
+
+	File with same data already exists at 9f4f813782bae0e5b3e97c39b51fd33b, skipping upload
+
+	Deploying with following values
+	===============================
+	Stack name                   : healthsurface
+	Region                       : us-east-1
+	Confirm changeset            : False
+	Disable rollback             : False
+	Deployment s3 bucket         : aws-sam-cli-managed-default-samclisourcebucket-tmvevqolnhe4
+	Capabilities                 : ["CAPABILITY_IAM"]
+	Parameter overrides          : {"ContactEmail": "<redacted>"}
+	Signing Profiles             : {}
+
+Initiating deployment
+=====================
+
+	Uploading to d4bb16403e3e72c95d3ad9483b7d04fb.template  7687 / 7687  (100.00%)
+
+
+Waiting for changeset to be created..
+
+CloudFormation stack changeset
+-------------------------------------------------------------------------------------------------
+Operation                LogicalResourceId        ResourceType             Replacement            
+-------------------------------------------------------------------------------------------------
++ Add                    ApiCachePolicy           AWS::CloudFront::Cache   N/A                    
+                                                  Policy                                          
++ Add                    ApiFunctionApiPermissi   AWS::Lambda::Permissio   N/A                    
+                         on                       n                                               
++ Add                    ApiFunctionRole          AWS::IAM::Role           N/A                    
++ Add                    ApiFunction              AWS::Lambda::Function    N/A                    
++ Add                    Distribution             AWS::CloudFront::Distr   N/A                    
+                                                  ibution                                         
++ Add                    FundingTable             AWS::DynamoDB::Table     N/A                    
++ Add                    HttpApiApiGatewayDefau   AWS::ApiGatewayV2::Sta   N/A                    
+                         ltStage                  ge                                              
++ Add                    HttpApi                  AWS::ApiGatewayV2::Api   N/A                    
++ Add                    IngestFunctionRole       AWS::IAM::Role           N/A                    
++ Add                    IngestFunctionTwiceDai   AWS::IAM::Role           N/A                    
+                         lyRole                                                                   
++ Add                    IngestFunctionTwiceDai   AWS::Scheduler::Schedu   N/A                    
+                         ly                       le                                              
++ Add                    IngestFunction           AWS::Lambda::Function    N/A                    
++ Add                    JobsTable                AWS::DynamoDB::Table     N/A                    
++ Add                    MetaTable                AWS::DynamoDB::Table     N/A                    
++ Add                    NewsTable                AWS::DynamoDB::Table     N/A                    
++ Add                    SiteBucketPolicy         AWS::S3::BucketPolicy    N/A                    
++ Add                    SiteBucket               AWS::S3::Bucket          N/A                    
++ Add                    SiteOAC                  AWS::CloudFront::Origi   N/A                    
+                                                  nAccessControl                                  
+-------------------------------------------------------------------------------------------------
+
+
+Changeset created successfully. arn:aws:cloudformation:us-east-1:555300501055:changeSet/samcli-deploy1790985030/d1e02c8f-c195-481d-9db1-01ece4852c06
+
+
+2026-10-02 19:50:42 - Waiting for stack create/update to complete
+
+CloudFormation events from stack operations (refresh every 5.0 seconds)
+-------------------------------------------------------------------------------------------------
+ResourceStatus           ResourceType             LogicalResourceId        ResourceStatusReason   
+-------------------------------------------------------------------------------------------------
+CREATE_IN_PROGRESS       AWS::CloudFormation::S   healthsurface            User Initiated         
+                         tack                                                                     
+CREATE_IN_PROGRESS       AWS::S3::Bucket          SiteBucket               -                      
+CREATE_IN_PROGRESS       AWS::DynamoDB::Table     NewsTable                -                      
+CREATE_IN_PROGRESS       AWS::CloudFront::Origi   SiteOAC                  -                      
+                         nAccessControl                                                           
+CREATE_IN_PROGRESS       AWS::DynamoDB::Table     JobsTable                -                      
+CREATE_IN_PROGRESS       AWS::CloudFront::Cache   ApiCachePolicy           -                      
+                         Policy                                                                   
+CREATE_IN_PROGRESS       AWS::DynamoDB::Table     FundingTable             -                      
+CREATE_IN_PROGRESS       AWS::DynamoDB::Table     MetaTable                -                      
+CREATE_IN_PROGRESS       AWS::CloudFront::Cache   ApiCachePolicy           Resource creation      
+                         Policy                                            Initiated              
+CREATE_IN_PROGRESS       AWS::DynamoDB::Table     MetaTable                Resource creation      
+                                                                           Initiated              
+CREATE_IN_PROGRESS -     AWS::CloudFront::Cache   ApiCachePolicy           Eventual consistency   
+CONFIGURATION_COMPLETE   Policy                                            check initiated        
+CREATE_IN_PROGRESS       AWS::CloudFront::Origi   SiteOAC                  Resource creation      
+                         nAccessControl                                    Initiated              
+CREATE_IN_PROGRESS       AWS::S3::Bucket          SiteBucket               Resource creation      
+                                                                           Initiated              
+CREATE_IN_PROGRESS       AWS::DynamoDB::Table     FundingTable             Resource creation      
+                                                                           Initiated              
+CREATE_IN_PROGRESS -     AWS::CloudFront::Origi   SiteOAC                  Eventual consistency   
+CONFIGURATION_COMPLETE   nAccessControl                                    check initiated        
+CREATE_IN_PROGRESS       AWS::DynamoDB::Table     JobsTable                Resource creation      
+                                                                           Initiated              
+CREATE_IN_PROGRESS       AWS::DynamoDB::Table     NewsTable                Resource creation      
+                                                                           Initiated              
+CREATE_COMPLETE          AWS::CloudFront::Cache   ApiCachePolicy           -                      
+                         Policy                                                                   
+CREATE_COMPLETE          AWS::CloudFront::Origi   SiteOAC                  -                      
+                         nAccessControl                                                           
+CREATE_IN_PROGRESS -     AWS::DynamoDB::Table     JobsTable                Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+CREATE_IN_PROGRESS -     AWS::DynamoDB::Table     NewsTable                Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+CREATE_IN_PROGRESS -     AWS::S3::Bucket          SiteBucket               Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+CREATE_COMPLETE          AWS::DynamoDB::Table     JobsTable                -                      
+CREATE_COMPLETE          AWS::DynamoDB::Table     NewsTable                -                      
+CREATE_COMPLETE          AWS::S3::Bucket          SiteBucket               -                      
+CREATE_IN_PROGRESS -     AWS::DynamoDB::Table     MetaTable                Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+CREATE_COMPLETE          AWS::DynamoDB::Table     MetaTable                -                      
+CREATE_IN_PROGRESS -     AWS::DynamoDB::Table     FundingTable             Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+CREATE_COMPLETE          AWS::DynamoDB::Table     FundingTable             -                      
+CREATE_IN_PROGRESS       AWS::IAM::Role           ApiFunctionRole          -                      
+CREATE_IN_PROGRESS       AWS::IAM::Role           IngestFunctionRole       -                      
+CREATE_IN_PROGRESS       AWS::IAM::Role           ApiFunctionRole          Resource creation      
+                                                                           Initiated              
+CREATE_IN_PROGRESS       AWS::IAM::Role           IngestFunctionRole       Resource creation      
+                                                                           Initiated              
+CREATE_IN_PROGRESS -     AWS::IAM::Role           ApiFunctionRole          Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+CREATE_COMPLETE          AWS::IAM::Role           ApiFunctionRole          -                      
+CREATE_IN_PROGRESS -     AWS::IAM::Role           IngestFunctionRole       Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+CREATE_IN_PROGRESS       AWS::Lambda::Function    ApiFunction              -                      
+CREATE_COMPLETE          AWS::IAM::Role           IngestFunctionRole       -                      
+CREATE_IN_PROGRESS       AWS::Lambda::Function    IngestFunction           -                      
+CREATE_IN_PROGRESS       AWS::Lambda::Function    ApiFunction              Resource creation      
+                                                                           Initiated              
+CREATE_IN_PROGRESS       AWS::Lambda::Function    IngestFunction           Resource creation      
+                                                                           Initiated              
+CREATE_IN_PROGRESS -     AWS::Lambda::Function    ApiFunction              Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+CREATE_COMPLETE          AWS::Lambda::Function    ApiFunction              -                      
+CREATE_IN_PROGRESS -     AWS::Lambda::Function    IngestFunction           Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+CREATE_IN_PROGRESS       AWS::ApiGatewayV2::Api   HttpApi                  -                      
+CREATE_COMPLETE          AWS::Lambda::Function    IngestFunction           -                      
+CREATE_IN_PROGRESS       AWS::IAM::Role           IngestFunctionTwiceDai   -                      
+                                                  lyRole                                          
+CREATE_IN_PROGRESS       AWS::IAM::Role           IngestFunctionTwiceDai   Resource creation      
+                                                  lyRole                   Initiated              
+CREATE_IN_PROGRESS       AWS::ApiGatewayV2::Api   HttpApi                  Resource creation      
+                                                                           Initiated              
+CREATE_IN_PROGRESS -     AWS::ApiGatewayV2::Api   HttpApi                  Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+CREATE_COMPLETE          AWS::ApiGatewayV2::Api   HttpApi                  -                      
+CREATE_IN_PROGRESS       AWS::Lambda::Permissio   ApiFunctionApiPermissi   -                      
+                         n                        on                                              
+CREATE_IN_PROGRESS       AWS::ApiGatewayV2::Sta   HttpApiApiGatewayDefau   -                      
+                         ge                       ltStage                                         
+CREATE_IN_PROGRESS       AWS::Lambda::Permissio   ApiFunctionApiPermissi   Resource creation      
+                         n                        on                       Initiated              
+CREATE_IN_PROGRESS -     AWS::Lambda::Permissio   ApiFunctionApiPermissi   Eventual consistency   
+CONFIGURATION_COMPLETE   n                        on                       check initiated        
+CREATE_IN_PROGRESS       AWS::ApiGatewayV2::Sta   HttpApiApiGatewayDefau   Resource creation      
+                         ge                       ltStage                  Initiated              
+CREATE_IN_PROGRESS -     AWS::ApiGatewayV2::Sta   HttpApiApiGatewayDefau   Eventual consistency   
+CONFIGURATION_COMPLETE   ge                       ltStage                  check initiated        
+CREATE_COMPLETE          AWS::Lambda::Permissio   ApiFunctionApiPermissi   -                      
+                         n                        on                                              
+CREATE_COMPLETE          AWS::ApiGatewayV2::Sta   HttpApiApiGatewayDefau   -                      
+                         ge                       ltStage                                         
+CREATE_IN_PROGRESS       AWS::CloudFront::Distr   Distribution             -                      
+                         ibution                                                                  
+CREATE_IN_PROGRESS       AWS::CloudFront::Distr   Distribution             Resource creation      
+                         ibution                                           Initiated              
+CREATE_IN_PROGRESS -     AWS::IAM::Role           IngestFunctionTwiceDai   Eventual consistency   
+CONFIGURATION_COMPLETE                            lyRole                   check initiated        
+CREATE_COMPLETE          AWS::IAM::Role           IngestFunctionTwiceDai   -                      
+                                                  lyRole                                          
+CREATE_IN_PROGRESS       AWS::Scheduler::Schedu   IngestFunctionTwiceDai   -                      
+                         le                       ly                                              
+CREATE_IN_PROGRESS       AWS::Scheduler::Schedu   IngestFunctionTwiceDai   Resource creation      
+                         le                       ly                       Initiated              
+CREATE_IN_PROGRESS -     AWS::Scheduler::Schedu   IngestFunctionTwiceDai   Eventual consistency   
+CONFIGURATION_COMPLETE   le                       ly                       check initiated        
+CREATE_COMPLETE          AWS::Scheduler::Schedu   IngestFunctionTwiceDai   -                      
+                         le                       ly                                              
+CREATE_IN_PROGRESS -     AWS::CloudFront::Distr   Distribution             Eventual consistency   
+CONFIGURATION_COMPLETE   ibution                                           check initiated        
+CREATE_COMPLETE          AWS::CloudFront::Distr   Distribution             -                      
+                         ibution                                                                  
+CREATE_IN_PROGRESS       AWS::S3::BucketPolicy    SiteBucketPolicy         -                      
+CREATE_IN_PROGRESS       AWS::S3::BucketPolicy    SiteBucketPolicy         Resource creation      
+                                                                           Initiated              
+CREATE_IN_PROGRESS -     AWS::S3::BucketPolicy    SiteBucketPolicy         Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+CREATE_IN_PROGRESS -     AWS::CloudFormation::S   healthsurface            Eventual consistency   
+CONFIGURATION_COMPLETE   tack                                              check initiated        
+CREATE_COMPLETE          AWS::S3::BucketPolicy    SiteBucketPolicy         -                      
+CREATE_COMPLETE          AWS::CloudFormation::S   healthsurface            -                      
+                         tack                                                                     
+-------------------------------------------------------------------------------------------------
+
+CloudFormation outputs from deployed stack
+-------------------------------------------------------------------------------------------------
+Outputs                                                                                         
+-------------------------------------------------------------------------------------------------
+Key                 SiteBucketName                                                              
+Description         -                                                                           
+Value               healthsurface-sitebucket-impipw3hsa21                                       
+
+Key                 DistributionId                                                              
+Description         -                                                                           
+Value               E3IS6BSK0QIFSM                                                              
+
+Key                 SiteUrl                                                                     
+Description         -                                                                           
+Value               https://d27dduaz3tjeg8.cloudfront.net                                       
+
+Key                 IngestFunctionName                                                          
+Description         -                                                                           
+Value               healthsurface-IngestFunction-JsvSw3CEYH8R                                   
+-------------------------------------------------------------------------------------------------
+
+
+Successfully created/updated stack - healthsurface in us-east-1
+

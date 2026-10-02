@@ -1,0 +1,12 @@
+HTTP/2 200 
+content-type: application/json
+content-length: 35
+date: Fri, 02 Oct 2026 23:54:34 GMT
+apigw-requestid: Eo-ZLjpsoAMEcyA=
+x-cache: Hit from cloudfront
+via: 1.1 929b7146384a9042d1a3787770c706e2.cloudfront.net (CloudFront)
+x-amz-cf-pop: LAX54-P7
+x-amz-cf-id: KQYZj5j3IFWJklsKeyb93lKyNmB-lJolOpubOulS5-4ddLoSi3nT1g==
+age: 18
+
+{"ok": true, "path": "/api/health"}
