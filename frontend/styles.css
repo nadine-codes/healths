@@ -271,6 +271,7 @@ li:has(> .more) { grid-column: 1 / -1; }
 }
 @media (max-width: 600px) {
   body { font-size: 17px; }
+  .masthead-top { justify-content: center; text-align: center; }
   .masthead-top .edition { display: none; }
   .disclaimer { display: none; }
   .sections [role="tab"] { padding: 9px 14px; }
