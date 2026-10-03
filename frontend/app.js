@@ -233,6 +233,18 @@ function renderFocus() {
   showFocus(0);
 }
 
+// Scroll only the "Up next" list. scrollIntoView would also scroll the page and pull
+// readers back up to the band every time it advances.
+function revealInPlaylist(item) {
+  const list = item.parentElement;
+  const top = item.offsetTop;
+  const bottom = top + item.offsetHeight;
+  let target = null;
+  if (top < list.scrollTop) target = top;
+  else if (bottom > list.scrollTop + list.clientHeight) target = bottom - list.clientHeight;
+  if (target !== null) list.scrollTo({ top: target, behavior: reducedMotion ? "auto" : "smooth" });
+}
+
 function showFocus(i) {
   focus.index = (i + focus.items.length) % focus.items.length;
   const it = focus.items[focus.index];
@@ -249,7 +261,7 @@ function showFocus(i) {
   for (const b of document.querySelectorAll("#focus [data-focus]")) {
     const on = Number(b.dataset.focus) === focus.index;
     b.setAttribute("aria-current", on);
-    if (on) b.scrollIntoView({ block: "nearest", behavior: reducedMotion ? "auto" : "smooth" });
+    if (on) revealInPlaylist(b.parentElement);
   }
   clearTimeout(focus.timer);
   if (reducedMotion) return;
