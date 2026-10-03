@@ -1,46 +1,90 @@
 # Builder Center submission draft
 
-Paste into the HealthSurface project on AWS Builder Center. Add both tags before Oct 2, 11:59 PM PT.
+Paste into the HealthSurface project on AWS Builder Center. Add both tags before Oct 2, 11:59 PM PT. Attach `proof/00-identity-and-bedrock.txt` (or a screenshot of it) and `proof/08-final-news.png`.
 
 **Tags:** #commercial-potential #startups
 
-**Live app:** https://d27dduaz3tjeg8.cloudfront.net (no login)
-**Code:** https://github.com/nadine-codes/healths
+---
 
-## What it is
-HealthSurface is a free, read-only reading list for people who follow health and health tech: clinicians and administrators moving into health tech, founders, operators, investors and analysts. Health news mixes company press releases, preprints, peer-reviewed studies and FDA actions in one stream, and they are hard to tell apart. HealthSurface labels every story by **Source type** (Press release, Preprint, Peer-reviewed study, Regulatory action, Reported news), so a reader can see what kind of source it is before clicking.
+# HealthSurface: health news, funding and jobs, labeled by source type
 
-Three tabs share the same Sector and Focus area tags:
-1. **News** from openFDA, medRxiv, PubMed, KFF Health News, The Conversation and the CMS and CDC newsrooms, each with a two-sentence summary in our own words and a daily brief.
-2. **Funding** from SEC Form D filings, NIH small business grants and funding announcements in the news. A round and investors appear only when the source states them.
-3. **Jobs** from verified company job boards (Greenhouse, Lever, Ashby) and Remote OK, filterable by function, job type, employment type, country and remote.
+**Live:** https://d27dduaz3tjeg8.cloudfront.net (no login, opens straight to content)
+**Code:** https://github.com/nadine-codes/healths (MIT)
 
-It is not medical advice. There are no accounts and no personal data, and every item links to its original source.
+## The problem
+A headline says a new drug "cuts heart attack risk by 40%." Is that an FDA approval, a peer-reviewed trial, a preprint nobody has checked yet, or the company's own press release? Most health feeds do not tell you, and the difference is everything.
 
-## How it is built on AWS
-- **Amazon CloudFront + S3** (Origin Access Control) serve the static site, and route `/api/*` to **API Gateway (HTTP API)** on the same domain, so there is one public URL and no CORS.
-- **AWS Lambda** (Python 3.14, arm64): an ingest function and a read-only API function.
-- **Amazon DynamoDB**: one table each for news, funding, jobs and run metadata.
-- **Amazon Bedrock**: Amazon Nova Lite tags sector and focus areas, writes the summary and spots funding announcements. **Bedrock Guardrails** check every model output for medical advice and dosing.
-- **EventBridge Scheduler** refreshes twice a day with retries off.
-- **AWS SAM** for all infrastructure as code, and an **AWS Budget** alert at $25.
+That gap hurts most for the people moving into health tech: nurses, pharmacists and hospital administrators retraining as product managers, analysts and founders. They need to follow the industry, spot who is raising money and find roles, and today that means a dozen tabs and a lot of guessing about what to trust.
 
-**Code versus AI:** code decides the source type label, links, dates, dedupe, free-to-read checks and job board matching. The model decides tags and summaries, and every reply is validated against the taxonomy. Funding facts are checked in code: the amount, round and investors must appear in the source text, which stopped the model from calling a $1B pharma partnership a "Series B".
+## What HealthSurface does
+One free reading list with three tabs that share the same Sector and Focus area tags:
 
-## How the coding agent helped
-Claude Code (Claude Opus 5.5) built and shipped the app in one evening from a written brief. It connected to the AWS account with `aws login` (console sign-in) and ran every AWS step itself: the identity check, the Bedrock model check and test call, the budget, the guardrail, each `sam deploy`, the S3 sync and CloudFront invalidations. It tracked each build step as a Linear issue through the Linear MCP connector, deployed after every step so there was always a live version, and kept a friction log.
+- **News:** 169 stories from 8 sources (openFDA, medRxiv, PubMed, KFF Health News, The Conversation, CMS and CDC). Every story carries a **Source type** label: Press release, Preprint, Peer-reviewed study, Regulatory action or Reported news, with a tooltip saying what each one means. A daily "In focus" brief picks the top stories.
+- **Funding:** 174 records from SEC Form D filings and NIH small business research grants. Amounts come from the filings themselves. A round or investor is shown only when a source states it.
+- **Jobs:** 1,460 open roles at 69 health companies, from verified company job boards (Greenhouse, Lever, Ashby) and Remote OK. Filter by function, 36 job types, employment type, country and remote.
 
-Things the agent caught and fixed along the way:
-- A new-account Lambda concurrency quota rolled back the first deploy, so it replaced reserved concurrency with a DynamoDB run lock.
-- Bedrock returned "account is being verified". It built a keyword fallback classifier so the site worked while verification was pending.
-- PubMed's sort date was months in the future for some journals, so it switched to the indexed date.
-- SEC EDGAR rejected its User-Agent format, so it matched the exact format SEC asks for.
-- A source terms review: it disabled a news feed whose terms ban automated access, deleted the stored items, and replaced it with sources whose licenses allow this use. It added the credits that NCBI and Remote OK require.
+No accounts, no personal data, no medical advice. Every item links to its original source.
 
-**Proof of the agent connection:** `proof/` in the repo (identity check, Bedrock calls, deploy logs, live URL checks, screenshots), summarized in `PROCESS.md`. Full timeline in `PROCESS.md` and `FRICTION_LOG.md`.
+**Try it in one minute:** open the News tab and set Source type to "Preprint" to see what has not been peer reviewed yet. On Funding, filter Sector by "Health Tech". On Jobs, pick Function "Clinical and Health" and Country "United States".
 
-## Where it is headed (Startups lane)
-- **Next:** an MCP server and an Alexa+ voice briefing that reuse the same classification module (it has no AWS code in it for this reason), ClinicalTrials.gov and Europe PMC sources, and email digests by focus area.
-- **Business model:** free reading list, paid alerts and digests for investors and operators (new Form D filings and hiring signals by sector), and job postings for health companies.
-- **Licensing before revenue:** KFF Health News is CC BY-NC-ND, so it would be licensed or dropped before any paid tier. All other sources are public domain, open metadata APIs, or CC BY-ND with headline-and-link use.
-- **Cost:** about $0.0001 per story in model tokens. A full refresh costs about a cent.
+## What is new here
+**The label comes from code, not from the AI.** Language models are good at reading and bad at being trusted, so HealthSurface splits the work on purpose:
+
+| Code decides (deterministic) | Amazon Nova decides (validated) |
+|---|---|
+| Source type label, from which source an item came | Sector and focus areas |
+| Link, date, dedupe | A two-sentence summary in our own words |
+| Free-to-read check (robots.txt, HTTP status, paywall markers) | Whether a headline announces funding |
+| Job board verification and company matching | Job function, type and seniority |
+
+Every model reply is checked against the taxonomy, and off-list answers are dropped one by one instead of trusted.
+
+**Funding facts are fact-checked in code.** Early on, Nova labeled a $1B Sanofi and Regeneron partnership as a "Series B" round. Now a story only counts as funding if the text says raised, closed or secured, and the amount, round and investors must each appear in the source text. If they don't, they are left blank. The model cannot invent a number.
+
+**Guardrails where they help, not where they hurt.** Amazon Bedrock Guardrails check every model output for medical advice and dosing. They are not applied to input, because real headlines mention doses and treatments, and an input filter would block real news.
+
+**Built to be reused.** The classifier is a plain Python module with no AWS code. The model is passed in as a function, so the same module can power an MCP server or a voice briefing next.
+
+## How it runs on AWS
+```
+EventBridge Scheduler (twice a day, no retries)
+   -> Ingest Lambda -> 8 news sources, SEC EDGAR, NIH RePORTER, job boards
+                    -> Amazon Bedrock (Nova Lite) + Bedrock Guardrails
+                    -> DynamoDB (news, funding, jobs, run metadata)
+Visitor -> CloudFront -> S3 (static site, Origin Access Control)
+                      -> /api/* -> API Gateway HTTP API -> read-only API Lambda
+```
+- **One domain:** CloudFront serves the site and routes `/api/*` to API Gateway, so there is one public URL and no CORS. The API is cached for 5 minutes and throttled.
+- **Lambda** on Python 3.14 and arm64 (cheapest compute). **DynamoDB** on-demand. Everything is defined in one **AWS SAM** template.
+- **Cost by design:** only new items are classified, with hard caps of 100 stories and 200 jobs per run, a DynamoDB lock against overlapping runs, and a $25 AWS Budget alert. Nova Lite costs about $0.0001 per story, so a full refresh costs about a cent.
+
+## Built with a coding agent
+Claude Code (Claude Opus 5.5) built and shipped HealthSurface in one evening from a written product brief. It connected to the AWS account with `aws login` (the AWS console sign-in) and ran every AWS step itself: the identity check, the Bedrock model check, the budget, the guardrail, every `sam deploy`, the S3 uploads and the CloudFront invalidations. It tracked each build step as a Linear issue through the Linear MCP connector and deployed after every step, so there was always a working live version.
+
+**Timeline (Oct 2, PT):** 16:42 first AWS command. 16:54 hello-world live on CloudFront. 17:16 all three tabs live with real data. 17:20 tests and the twice-daily schedule. The evening after that went to quality: a redesign, a source terms review and fixes from real use.
+
+**What the agent caught that a tutorial would not have:**
+- **A new-account quota.** The first deploy rolled back because new accounts must keep 10 Lambda concurrency units free, which the docs don't mention. The agent replaced reserved concurrency with a DynamoDB run lock.
+- **Bedrock "account is being verified."** Listing models said Nova was ACTIVE, but the first real call was denied. The agent built a keyword fallback classifier so the site kept working, and items are retried with the model later. Today 165 of 169 stories and 97% of jobs are model-classified.
+- **Dates from the future.** PubMed's sort date is the journal issue date, sometimes months ahead. The agent switched to the indexed date.
+- **A label mismatch in the daily brief.** The model once paired a preprint's text with a "Reported news" label. The agent changed it so the model only picks stories, and each bullet reuses that story's own label and link. A test covers it.
+- **Source terms.** At the owner's request the agent read every source's terms. It disabled a news feed whose terms ban automated access, deleted the stored items, and replaced it with sources whose licenses allow this use. It also added the credits that NCBI and Remote OK require.
+
+**Proof of the agent connection:** the `proof/` folder has the identity check, the Bedrock calls before and after verification, the deploy logs and live URL checks. `PROCESS.md` has the full timeline and `FRICTION_LOG.md` lists every problem and fix.
+
+## Quality
+- 53 unit tests (taxonomy, model-reply validation, the funding fact check, Form D parsing, dedupe, paywall detection, the brief keeping each story's own label).
+- All infrastructure as code. No secrets in the repo; the contact email that PubMed and SEC require is a deploy parameter.
+- Every source's terms status is documented in the README, including the sources we chose not to use and why.
+- Safety: guardrail on every summary, a "reading list, not medical advice" notice on every page, and a rule that blocks stories about suicide at ingest.
+
+## Who it helps and where it is headed
+**Users:** clinicians and administrators moving into health tech, founders tracking competitors and hiring, investors and analysts watching Form D filings, and anyone who wants to know whether a health headline is a study or a sales pitch.
+
+**Next:**
+- An MCP server and an Alexa+ daily voice briefing, reusing the classifier module as-is.
+- ClinicalTrials.gov and Europe PMC as sources. Email digests by focus area.
+
+**Business model:** the reading list stays free. Paid alerts for investors and operators (new Form D filings and hiring surges by sector and focus area), and paid job postings for health companies.
+
+**Licensing before revenue:** KFF Health News is licensed CC BY-NC-ND, so it would be licensed or dropped before any paid tier. All other sources are public domain, open metadata APIs, or CC BY-ND with headline-and-link use.
