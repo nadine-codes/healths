@@ -16,7 +16,8 @@ const PAGE = 40;
 const state = { meta: null, data: {}, shown: { news: PAGE, funding: PAGE, jobs: PAGE } };
 
 const $ = (sel, root = document) => root.querySelector(sel);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+// Escapes HTML and swaps em-dashes from source titles for commas (house style: no em-dashes).
+const esc = (s) => String(s ?? "").replace(/\s*\u2014\s*/g, ", ").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const fmtDate = (d) => {
   if (!d) return "";
   const dt = new Date(d + "T12:00:00");

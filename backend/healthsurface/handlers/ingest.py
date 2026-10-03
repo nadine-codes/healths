@@ -1,10 +1,12 @@
 """Scheduled ingest: fetch, dedupe, check free-to-read, classify (capped), store."""
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 from .. import classify, config
 from ..sources import funding as funding_src
+from ..sources import jobs as jobs_src
 from ..sources import news as news_src
 from . import bedrock, store
 
@@ -99,11 +101,87 @@ def ingest_funding(report: dict) -> None:
     report["funding"] = {"form_d_new": len(rows)}
 
 
-STAGES = {"news": ingest_news, "funding": ingest_funding}
+JOB_FIELDS = ("id", "company", "title", "url", "location", "remote", "posted", "source", "source_name",
+              "sector", "focus_areas")
+
+
+def _discover_companies(report: dict) -> list[dict]:
+    """Verify job boards for companies that appeared in news funding announcements."""
+    state = store.get_meta("job_companies") or {"verified": [], "tried": []}
+    known = {c["name"].lower() for c in jobs_src.COMPANIES + state["verified"]} | set(state["tried"])
+    candidates = {r["company"]: r for r in store.scan_all(store.funding) if r.get("source_kind") == "News story"}
+    added = []
+    for name, rec in list(candidates.items())[:20]:
+        if name.lower() in known:
+            continue
+        found = jobs_src.verify_company(name, rec.get("sector"), rec.get("focus_areas") or [])
+        state["tried"].append(name.lower())
+        if found:
+            state["verified"].append(found)
+            added.append(name)
+    store.put_meta("job_companies", state)
+    report["jobs_companies_added"] = added
+    return state["verified"]
+
+
+def ingest_jobs(report: dict) -> None:
+    extra = _discover_companies(report)
+    fetched, report["job_sources"], boards_ok = jobs_src.fetch_all(extra)
+    existing = {r["id"]: r for r in store.scan_all(store.jobs, "id, classifier, job_type")}
+    fetched = list({j["id"]: j for j in fetched}.values())
+    new = [j for j in fetched if j["id"] not in existing]
+
+    def needs_retry(row):  # keyword-only rows, and "Other" from the first model prompt version
+        return row and (row.get("classifier") == "rules" or (row.get("classifier") == "model" and row.get("job_type") == "Other"))
+
+    retry = [j for j in fetched if needs_retry(existing.get(j["id"]))]
+
+    invoke = _model()
+    to_model = (new + retry)[: config.MAX_NEW_JOBS_PER_RUN] if invoke else []
+    model_ids = {j["id"] for j in to_model}
+    with ThreadPoolExecutor(4) as pool:
+        modelled = {j["id"]: res for j, res in zip(to_model, pool.map(lambda j: classify.classify_job(j, invoke), to_model))}
+
+    rows = []
+    for job in new + [j for j in retry if j["id"] in model_ids]:
+        result, method = modelled.get(job["id"]) or classify.classify_job(job)
+        row = {k: job[k] for k in JOB_FIELDS if job.get(k) not in (None, "")}
+        row.update(result, classifier=method)
+        rows.append(row)
+    store.put_many(store.jobs, rows)
+
+    # Remove postings that closed: anything stored from a board that loaded but no longer lists it.
+    live = {j["id"] for j in fetched}
+    closed = [i for i in existing if i not in live and any(i.startswith(p) for p in boards_ok)]
+    store.delete_many(store.jobs, closed)
+    report["jobs"] = {"fetched": len(fetched), "new": len(new), "stored": len(rows), "model": len(to_model),
+                      "closed_removed": len(closed)}
+
+
+def ingest_brief(report: dict) -> None:
+    """Today's brief: one model call per day from stories already stored."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    current = store.get_meta("brief")
+    if current and current.get("date") == today:
+        report["brief"] = "already built today"
+        return
+    invoke = _model()
+    if not invoke:
+        return
+    recent = [s for s in sorted(store.scan_all(store.news), key=lambda s: s.get("date") or "", reverse=True)
+              if s.get("classifier") == "model"][:25]
+    bullets = classify.todays_brief(recent, invoke)
+    store.put_meta("brief", {"date": today, "bullets": bullets})
+    report["brief"] = len(bullets)
+
+
+STAGES = {"news": ingest_news, "funding": ingest_funding, "jobs": ingest_jobs, "brief": ingest_brief}
 
 
 def handler(event, context):
     stages = (event or {}).get("stages") or list(STAGES)
+    for key in bedrock.usage:  # warm containers keep module state; report per run
+        bedrock.usage[key] = 0
     if not store.acquire_lock("ingest"):
         log.warning("another ingest run holds the lock; exiting")
         return {"ok": False, "reason": "locked"}

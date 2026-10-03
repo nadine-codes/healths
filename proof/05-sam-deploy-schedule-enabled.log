@@ -1,0 +1,97 @@
+
+	Managed S3 bucket: aws-sam-cli-managed-default-samclisourcebucket-tmvevqolnhe4
+	Auto resolution of buckets can be turned off by setting resolve_s3=False
+	To use a specific S3 bucket, set --s3-bucket=<bucket_name>
+	Above settings can be stored in samconfig.toml
+	Uploading to 8e9606ba92dce5cf20c600972b33e488  30414 / 30414  (100.00%)
+
+	File with same data already exists at 8e9606ba92dce5cf20c600972b33e488, skipping upload
+
+	Deploying with following values
+	===============================
+	Stack name                   : healthsurface
+	Region                       : us-east-1
+	Confirm changeset            : False
+	Disable rollback             : False
+	Deployment s3 bucket         : aws-sam-cli-managed-default-samclisourcebucket-tmvevqolnhe4
+	Capabilities                 : ["CAPABILITY_IAM"]
+	Parameter overrides          : {"ContactEmail": "<redacted>", "GuardrailId": "l6l310tabre0", "GuardrailVersion": "1", "ScheduleState": "ENABLED"}
+	Signing Profiles             : {}
+
+Initiating deployment
+=====================
+
+	Uploading to 7ba53494a73b670dc434b8aba422700f.template  7686 / 7686  (100.00%)
+
+
+Waiting for changeset to be created..
+
+CloudFormation stack changeset
+-------------------------------------------------------------------------------------------------
+Operation                LogicalResourceId        ResourceType             Replacement            
+-------------------------------------------------------------------------------------------------
+* Modify                 ApiFunction              AWS::Lambda::Function    False                  
+* Modify                 HttpApi                  AWS::ApiGatewayV2::Api   False                  
+* Modify                 IngestFunctionTwiceDai   AWS::IAM::Role           False                  
+                         lyRole                                                                   
+* Modify                 IngestFunctionTwiceDai   AWS::Scheduler::Schedu   False                  
+                         ly                       le                                              
+* Modify                 IngestFunction           AWS::Lambda::Function    False                  
+-------------------------------------------------------------------------------------------------
+
+
+Changeset created successfully. arn:aws:cloudformation:us-east-1:555300501055:changeSet/samcli-deploy1790986678/635fa53a-0d85-4792-aef9-9e6c161048dd
+
+
+2026-10-02 20:18:16 - Waiting for stack create/update to complete
+
+CloudFormation events from stack operations (refresh every 5.0 seconds)
+-------------------------------------------------------------------------------------------------
+ResourceStatus           ResourceType             LogicalResourceId        ResourceStatusReason   
+-------------------------------------------------------------------------------------------------
+UPDATE_IN_PROGRESS       AWS::CloudFormation::S   healthsurface            User Initiated         
+                         tack                                                                     
+UPDATE_IN_PROGRESS       AWS::Lambda::Function    ApiFunction              -                      
+UPDATE_IN_PROGRESS       AWS::Lambda::Function    IngestFunction           -                      
+UPDATE_IN_PROGRESS -     AWS::Lambda::Function    IngestFunction           Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+UPDATE_IN_PROGRESS -     AWS::Lambda::Function    ApiFunction              Eventual consistency   
+CONFIGURATION_COMPLETE                                                     check initiated        
+UPDATE_COMPLETE          AWS::Lambda::Function    IngestFunction           -                      
+UPDATE_COMPLETE          AWS::Lambda::Function    ApiFunction              -                      
+UPDATE_IN_PROGRESS       AWS::Scheduler::Schedu   IngestFunctionTwiceDai   -                      
+                         le                       ly                                              
+UPDATE_IN_PROGRESS -     AWS::Scheduler::Schedu   IngestFunctionTwiceDai   Eventual consistency   
+CONFIGURATION_COMPLETE   le                       ly                       check initiated        
+UPDATE_COMPLETE          AWS::Scheduler::Schedu   IngestFunctionTwiceDai   -                      
+                         le                       ly                                              
+UPDATE_COMPLETE_CLEANU   AWS::CloudFormation::S   healthsurface            -                      
+P_IN_PROGRESS            tack                                                                     
+UPDATE_COMPLETE          AWS::CloudFormation::S   healthsurface            -                      
+                         tack                                                                     
+-------------------------------------------------------------------------------------------------
+
+CloudFormation outputs from deployed stack
+-------------------------------------------------------------------------------------------------
+Outputs                                                                                         
+-------------------------------------------------------------------------------------------------
+Key                 SiteBucketName                                                              
+Description         -                                                                           
+Value               healthsurface-sitebucket-impipw3hsa21                                       
+
+Key                 DistributionId                                                              
+Description         -                                                                           
+Value               E3IS6BSK0QIFSM                                                              
+
+Key                 SiteUrl                                                                     
+Description         -                                                                           
+Value               https://d27dduaz3tjeg8.cloudfront.net                                       
+
+Key                 IngestFunctionName                                                          
+Description         -                                                                           
+Value               healthsurface-IngestFunction-JsvSw3CEYH8R                                   
+-------------------------------------------------------------------------------------------------
+
+
+Successfully created/updated stack - healthsurface in us-east-1
+

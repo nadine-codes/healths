@@ -16,3 +16,11 @@ Agent: Claude Code (Claude Opus 5.5), working in the terminal with the AWS CLI, 
 - 17:05 Wrote the news fetchers (FDA RSS, openFDA drugs and devices, medRxiv, PubMed E-utilities, commercial RSS), the free-to-read checker (robots.txt, status, JSON-LD `isAccessibleForFree`, wall markers; it reads at most 150 KB of HTML and keeps no text), the ingest and API handlers, and the three-tab front end. Proof: `proof/02-news-tab.png`.
 - 17:12 Reviewed the first live output, found and fixed future PubMed dates and invented funding rounds (see FRICTION_LOG).
 - 17:15 Funding: SEC EDGAR Form D fetcher (full-text search by health industry group, then the filing XML for issuer, amount sold, offering size and date). News funding records go through the code-side fact check. Proof: `proof/03-funding-tab.png`.
+- 17:16 Jobs: `scripts/verify_boards.py` verified Greenhouse, Lever and Ashby tokens for a 50-company seed list (35 kept after a manual name check). The ingest pulls the newest 60 per company plus health-related RemoteOK jobs, removes closed postings, and auto-verifies boards for companies in news funding announcements (Tiny Health was added this way). Proof: `proof/04-jobs-tab.png`.
+- 17:20 Tests (28, pytest), the daily brief, and the twice-daily schedule enabled (`proof/05-sam-deploy-schedule-enabled.log`).
+- 17:25 Ran capped backfill runs (200 jobs each) so most jobs are model-classified before judging.
+
+## Prompts that shaped the build
+- The full brief in `healths-claude-code-prompt.md` (build order, cut order, source rules).
+- "Create a project called HealthSurface with one issue per build step (0 to 7)... Move each issue to In Progress when you start it and Done when it is deployed and checked." The agent tracked every step in Linear through the Linear MCP connector.
+- "You can just keep it public": the repo stays public by the owner's choice, so the agent redacted the contact email from committed deploy logs.

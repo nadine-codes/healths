@@ -54,16 +54,18 @@ def job_prompt(job: dict) -> str:
         f"Seniority: {json.dumps(tx.SENIORITY)}\n\n"
         f"Title: {job.get('title')}\nCompany: {job.get('company')}\n"
         f"Posting excerpt: {(job.get('text') or '')[:800]}\n\n"
-        "Return JSON with keys: job_type, employment_type, seniority."
+        "Return JSON with keys: job_type, employment_type, seniority. Copy each value exactly from its "
+        "list. Clinicians (nurses, physicians, therapists, pharmacists) are Clinical Product Specialist "
+        "unless a more specific clinical type fits; recruiters are People and Recruiting."
     )
 
 
 def brief_prompt(stories: list[dict]) -> str:
-    lines = [f"[{i}] ({s['label']}) {s['title']}: {s.get('summary', '')}" for i, s in enumerate(stories)]
+    lines = [f"[{i}] ({s['label']}) {s['title']}" for i, s in enumerate(stories)]
     return (
-        "Write 5 to 7 bullets covering the most notable of these stories for a general reader. "
-        "Each bullet is one plain sentence in your own words with no medical advice. "
-        'Return JSON: {"bullets": [{"index": <story number>, "text": "..."}]}\n\n' + "\n".join(lines)
+        "Pick the 6 most notable stories for a general reader interested in health and health tech. "
+        "Prefer a mix of source types and topics, and avoid near-duplicates. "
+        'Return JSON: {"picks": [<story numbers in order of importance>]}\n\n' + "\n".join(lines)
     )
 
 
@@ -120,8 +122,11 @@ def validate_funding(raw: dict) -> Optional[dict]:
     return {"company": company[:120], "amount_usd": amount, "round_stage": stage, "date": date, "investors": investors}
 
 
-def validate_job(raw: dict) -> dict:
-    job_type = raw.get("job_type") if raw.get("job_type") in tx.JOB_TYPES else "Other"
+def validate_job(raw: dict, title: str = "") -> dict:
+    job_type = raw.get("job_type")
+    if job_type not in tx.JOB_TYPES or job_type == "Other":
+        # Off-list or "Other" answers defer to the keyword rules, which map to the exact list.
+        job_type = rule_classify_job({"title": title})["job_type"]
     emp = raw.get("employment_type")
     if emp not in tx.EMPLOYMENT_TYPES:
         raise ValueError(f"bad employment type: {emp!r}")
@@ -225,7 +230,7 @@ JOB_TYPE_KEYWORDS = [
     ("Social Media and Community", r"social media|community"),
     ("PR and Communications", r"communications|\bpr\b|public relations"),
     ("Solutions and Sales Engineering", r"solutions engineer|sales engineer|solutions architect|solutions consultant"),
-    ("Account Manager", r"account manager|account executive|key account"),
+    ("Account Manager", r"accounts? manager|account executive|key account"),
     ("Customer Success Manager", r"customer success"),
     ("Implementation and Onboarding", r"implementation|onboarding|deployment"),
     ("Customer Support", r"support|customer service|member services|care coordinator"),
@@ -236,9 +241,9 @@ JOB_TYPE_KEYWORDS = [
     ("Regulatory and Quality", r"regulatory|quality|compliance specialist|\bqms\b"),
     ("Health Informatics", r"informatic"),
     ("Clinical Operations", r"clinical operations|clinical trial|cra\b|study manager"),
-    ("Clinical Product Specialist", r"nurse|\brn\b|physician|clinician|therapist|pharmacist|dietitian|psychiatr|psycholog|\bmd\b|\bnp\b|clinical"),
-    ("Finance and Accounting", r"financ|accountant|accounting|controller|fp&a|payroll|tax"),
-    ("People and Recruiting", r"recruit|talent|people|\bhr\b|human resources"),
+    ("Clinical Product Specialist", r"nurse|\brn\b|physician|clinician|therapist|pharmacist|dietitian|psychiatr|psycholog|\bmd\b|\bdo\b|\bnp\b|clinical|coach|counselor|provider"),
+    ("Finance and Accounting", r"financ|accountant|accounting|controller|fp&a|tax|equity"),
+    ("People and Recruiting", r"recruit|talent|people|\bhr\b|human resources|learning|training|payroll"),
     ("Legal and Compliance", r"legal|counsel|attorney|compliance|privacy"),
     ("Executive and Admin", r"chief|\bceo\b|\bcfo\b|\bcto\b|vp\b|vice president|executive assistant|office manager|admin"),
     ("Operations and Strategy", r"operations|strategy|bizops|chief of staff|revenue cycle"),
@@ -316,22 +321,19 @@ def classify_story(item: dict, invoke: Optional[Invoke] = None) -> tuple[dict, s
 def classify_job(job: dict, invoke: Optional[Invoke] = None) -> tuple[dict, str]:
     if invoke:
         try:
-            return validate_job(parse_json(invoke(SYSTEM_PROMPT, job_prompt(job)))), "model"
+            return validate_job(parse_json(invoke(SYSTEM_PROMPT, job_prompt(job))), job.get("title", "")), "model2"
         except Exception:  # noqa: BLE001
             pass
     return rule_classify_job(job), "rules"
 
 
 def todays_brief(stories: list[dict], invoke: Invoke) -> list[dict]:
-    """5 to 7 bullets from stored stories. Each bullet keeps its story's label and link."""
+    """5 to 7 bullets from stored stories. The model only chooses which stories; each bullet
+    reuses that story's own summary, label and link, so a bullet can never carry the wrong label."""
     raw = parse_json(invoke(SYSTEM_PROMPT, brief_prompt(stories)))
-    bullets = []
-    for b in raw.get("bullets", [])[:7]:
-        idx = b.get("index")
-        if not isinstance(idx, int) or not 0 <= idx < len(stories):
-            continue
-        s = stories[idx]
-        bullets.append({"text": clean_summary(b.get("text", "")), "label": s["label"], "url": s["url"], "title": s["title"]})
-    if len(bullets) < 3:
+    picks = [i for i in dict.fromkeys(raw.get("picks", [])) if isinstance(i, int) and 0 <= i < len(stories)][:7]
+    bullets = [{"text": stories[i]["summary"].split(". ")[0].rstrip(".") + ".", "label": stories[i]["label"],
+                "url": stories[i]["url"], "title": stories[i]["title"]} for i in picks if stories[i].get("summary")]
+    if len(bullets) < 5:
         raise ValueError("brief too short")
     return bullets
