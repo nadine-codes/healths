@@ -92,7 +92,8 @@ const VIEWS = {
       return `<li class="card">
         <div class="meta"><span>${esc(i.source_kind)}</span><time>${fmtDate(i.date)}</time>${i.state ? `<span>${esc(i.state)}</span>` : ""}</div>
         <h3>${esc(i.company)}</h3>
-        <p class="amount">${esc(fmtMoney(i.amount_usd))}</p>
+        <p class="amount">${esc(fmtMoney(i.amount_usd))}${i.source_kind === "SEC Form D" && i.amount_usd != null ? ' <span class="meta">sold so far, as filed</span>' : ""}</p>
+        ${i.offering_amount_usd ? `<p class="meta">Total offering: ${esc(fmtMoney(i.offering_amount_usd))}${i.industry ? " · " + esc(i.industry) : ""}</p>` : ""}
         ${facts.length ? `<p>${esc(facts.join(" · "))}</p>` : ""}
         <p class="meta"><a href="${esc(i.source_url)}" target="_blank" rel="noopener">View source: ${esc(i.source_name)}</a></p>
         ${tagChips(i)}</li>`;

@@ -4,6 +4,7 @@ import time
 from datetime import datetime, timezone
 
 from .. import classify, config
+from ..sources import funding as funding_src
 from ..sources import news as news_src
 from . import bedrock, store
 
@@ -91,7 +92,14 @@ def funding_from_story(story: dict, f: dict) -> dict:
     }
 
 
-STAGES = {"news": ingest_news}
+def ingest_funding(report: dict) -> None:
+    existing = {r["id"] for r in store.scan_all(store.funding, "id")}
+    rows = funding_src.fetch_new(existing)
+    store.put_many(store.funding, rows)
+    report["funding"] = {"form_d_new": len(rows)}
+
+
+STAGES = {"news": ingest_news, "funding": ingest_funding}
 
 
 def handler(event, context):
