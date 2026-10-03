@@ -435,6 +435,14 @@ def is_funding_item(item: dict) -> bool:
     return item["label"].startswith(("SEC", "NIH"))
 
 
+def is_research_item(item: dict) -> bool:
+    return item["label"] in ("Peer-reviewed study", "Preprint")
+
+
+SUMMARY_MIN_RESEARCH = 2
+_MONEY_LINK = re.compile(r"\b(money|funding|funds|cash|raises?|raised|investments?)\b", re.I)
+
+
 def is_treatment_item(item: dict) -> bool:
     """Treatments, approvals and public health or policy moves: what the second paragraph is for."""
     return item["label"] in ("Regulatory action", "Press release") or \
@@ -446,7 +454,8 @@ def summary_prompt(items: list[dict]) -> str:
     for i, it in enumerate(items):
         detail = f" Our summary: {it['summary']}" if it.get("summary") else ""
         label = "Preprint, not yet peer reviewed" if it["label"] == "Preprint" else it["label"]
-        kind = " | FUNDING" if is_funding_item(it) else " | TREATMENT OR POLICY" if is_treatment_item(it) else ""
+        kind = (" | FUNDING" if is_funding_item(it) else " | TREATMENT OR POLICY" if is_treatment_item(it)
+                else " | RESEARCH" if is_research_item(it) else "")
         lines.append(f"[{i}] {label}{kind} | {it['source_name']} | {it['title']}.{detail}")
     return (
         "Write today's summary from the items below.\n"
@@ -454,8 +463,9 @@ def summary_prompt(items: list[dict]) -> str:
         "or minor ones. Favor discoveries, new treatments and approvals, big public health moves, and big money.\n"
         "- 2 or 3 paragraphs, 180 to 300 words in total. First: research and discoveries. Second: treatments, "
         "approvals and public health or policy moves. Third, its own paragraph, if worth it: the biggest funding.\n"
-        "- Include at least one item marked TREATMENT OR POLICY, and at most "
-        f"{SUMMARY_MAX_FUNDING} items marked FUNDING.\n"
+        f"- Include at least {SUMMARY_MIN_RESEARCH} items marked RESEARCH, at least one marked TREATMENT OR POLICY, "
+        f"and at most {SUMMARY_MAX_FUNDING} marked FUNDING. A line about money, like \"Now, the money.\", only opens "
+        "the FUNDING paragraph.\n"
         "- Give each story two or three sentences: what happened, then why it matters to a listener, using only "
         "what the item says. Give each FUNDING item one sentence: who raised or received how much, and where that is "
         "reported. Say nothing about plans, investors or what the money means.\n"
@@ -566,6 +576,13 @@ def validate_summary(raw: dict, items: list[dict]) -> dict:
     for n, para in enumerate(drafts):
         drafts[n] = [(i, t) for i, t in para if i not in extra]
         dropped += len(para) - len(drafts[n])
+    # A money linking line only opens a paragraph whose first fact is a funding item.
+    for n, para in enumerate(drafts):
+        first = next((i for i, _ in para if i is not None), None)
+        money_para = first is not None and is_funding_item(items[first])
+        kept = [(i, t) for i, t in para if i is not None or money_para or not _MONEY_LINK.search(t)]
+        dropped += len(para) - len(kept)
+        drafts[n] = kept
     # A preprint is always called out as not yet peer reviewed; code adds it when the model did not.
     flagged = {i for para in drafts for i, t in para if re.search(r"preprint|not (?:yet |been )*peer[- ]review", t, re.I)}
     paragraphs, cited = [], []
@@ -588,6 +605,9 @@ def validate_summary(raw: dict, items: list[dict]) -> dict:
         raise ValueError(f"summary must cover {SUMMARY_MIN_ITEMS} to {SUMMARY_MAX_ITEMS} items, not {len(cited)}")
     if any(is_treatment_item(it) for it in items) and not any(is_treatment_item(items[i]) for i in cited):
         raise ValueError("summary must include at least one item marked TREATMENT OR POLICY")
+    research = sum(is_research_item(items[i]) for i in cited)
+    if research < min(SUMMARY_MIN_RESEARCH, sum(map(is_research_item, items))):
+        raise ValueError(f"summary must include at least {SUMMARY_MIN_RESEARCH} items marked RESEARCH, not {research}")
     sources = [{k: items[i][k] for k in ("title", "url", "label", "source_name") if items[i].get(k)} for i in cited]
     return {"paragraphs": paragraphs, "sources": sources, "dropped": dropped}
 

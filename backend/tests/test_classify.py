@@ -191,8 +191,8 @@ def test_summary_always_says_a_preprint_is_not_peer_reviewed():
     items = five_items()
     items[4] = {**items[4], "label": "Preprint"}
     reply = summary_reply()
-    reply["paragraphs"][0][3]["text"] = "A second peer-reviewed study looked at how wearables track sleep in older adults."
-    assert "https://pubmed.example/5" not in [s["url"] for s in classify.validate_summary(reply, items)["sources"]]
+    assert not classify.sentence_grounded("A second peer-reviewed study looked at how wearables track sleep in older adults.",
+                                          items[4])
     reply["paragraphs"][0][3]["text"] = "A second study looked at how wearables track sleep in older adults at home."
     out = classify.validate_summary(reply, items)
     assert "In a preprint that hasn't been peer reviewed yet, a second study" in out["paragraphs"][0]
@@ -252,6 +252,22 @@ def test_summary_funding_gets_one_sentence_and_no_invented_plans():
                                {"item": 5, "text": "That money for Lisata Therapeutics shows up in the SEC filing."}]
     out = classify.validate_summary(reply, items)
     assert out["paragraphs"][2].count("Lisata") == 1 and out["dropped"] == 1
+
+
+def test_summary_needs_two_research_items_when_available():
+    reply = summary_reply()
+    reply["paragraphs"][0] = [s for s in reply["paragraphs"][0] if s["item"] != 4]  # only one study left
+    reply["paragraphs"][0].append({"item": 3, "text": "Busy hospitals tested the ECG model on thousands of tracings, "
+                                                     "which matters because every minute counts for the heart."})
+    with pytest.raises(ValueError, match="RESEARCH"):
+        classify.validate_summary(reply, five_items())
+
+
+def test_summary_money_line_only_opens_the_funding_paragraph():
+    reply = summary_reply()
+    reply["paragraphs"][1][0]["text"] = "Now, the money."  # wrongly opens the FDA paragraph
+    out = classify.validate_summary(reply, five_items())
+    assert not out["paragraphs"][1].startswith("Now, the money.") and out["dropped"] == 1
 
 
 def test_summary_rejects_too_few_items():
