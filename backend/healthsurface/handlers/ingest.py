@@ -164,15 +164,18 @@ def _discover_companies(report: dict) -> list[dict]:
     return state["verified"]
 
 
+MAX_JOB_ATTEMPTS = 3  # a job the model keeps failing on keeps its keyword tags instead of costing every run
+
+
 def ingest_jobs(report: dict) -> None:
     extra = _discover_companies(report)
     fetched, report["job_sources"], boards_ok = jobs_src.fetch_all(extra)
-    existing = {r["id"]: r for r in store.scan_all(store.jobs, "id, classifier, job_type")}
+    existing = {r["id"]: r for r in store.scan_all(store.jobs, "id, classifier, job_type, attempts")}
     fetched = list({j["id"]: j for j in fetched}.values())
     new = [j for j in fetched if j["id"] not in existing]
 
-    def needs_retry(row):  # keyword-only rows and rows tagged by an older job prompt
-        return row and row.get("classifier") != classify.JOB_CLASSIFIER
+    def needs_retry(row):  # rows tagged by an older job prompt, or keyword-only rows with attempts left
+        return row and row.get("classifier") != classify.JOB_CLASSIFIER and row.get("attempts", 0) < MAX_JOB_ATTEMPTS
 
     retry = [j for j in fetched if needs_retry(existing.get(j["id"]))]
 
@@ -187,6 +190,8 @@ def ingest_jobs(report: dict) -> None:
         result, method = modelled.get(job["id"]) or classify.classify_job(job)
         row = {k: job[k] for k in JOB_FIELDS if job.get(k) not in (None, "")}
         row.update(result, classifier=method)
+        if method != classify.JOB_CLASSIFIER:  # model failed (throttled or bad reply): count it
+            row["attempts"] = existing.get(job["id"], {}).get("attempts", 0) + 1
         rows.append(row)
     store.put_many(store.jobs, rows)
 

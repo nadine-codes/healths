@@ -172,6 +172,8 @@ def validate_funding(raw: dict) -> Optional[dict]:
 
 
 def validate_job(raw: dict, title: str = "") -> dict:
+    # Nova sometimes wraps single answers in a list; take the first value.
+    raw = {k: (v[0] if isinstance(v, list) and v else v) for k, v in raw.items()}
     job_type = raw.get("job_type")
     if job_type not in tx.JOB_TYPES:
         # Off-list answers defer to the keyword rules, which map to the exact list.

@@ -296,3 +296,9 @@ def test_rule_job_classifier_edge_cases(title, job_type):
 def test_job_prompt_says_seniority_does_not_decide_the_type():
     prompt = classify.job_prompt({"title": "VP of Engineering", "company": "x"})
     assert "not by seniority" in prompt and "Clinical Product Specialist: licensed clinicians" in prompt
+
+
+def test_validate_job_unwraps_single_item_lists():
+    out = classify.validate_job({"job_type": ["Product Marketing", "Sales"], "employment_type": ["Full-time"],
+                                 "seniority": ["Director"]})
+    assert out["job_type"] == "Product Marketing" and out["employment_type"] == "Full-time"
