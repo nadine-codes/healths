@@ -310,7 +310,7 @@ function renderSummary() {
   const sum = state.meta?.summary;
   const el = $("#summary");
   if (!sum?.paragraphs?.length) { el.hidden = true; return; }
-  const canSpeak = "speechSynthesis" in window && sum.spoken;
+  const canSpeak = sum.audio || ("speechSynthesis" in window && sum.spoken);
   el.hidden = false;
   el.innerHTML = `<div class="wrap">
     <div class="focus-head"><h2>Summary</h2><p>Today's top health news in a couple of minutes.</p></div>
@@ -321,7 +321,7 @@ function renderSummary() {
         <div class="summary-text">${sum.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("")}</div>
         <div class="feature-actions">
           ${canSpeak ? `<button type="button" class="btn" data-listen aria-pressed="false">&#9654; Listen</button>` : ""}
-          <span class="feature-meta">Written by an AI model from the ${sum.sources.length} sources listed. It can make mistakes, so check the source.</span>
+          <span class="feature-meta">Written by an AI model from the ${sum.sources.length} sources listed${sum.audio ? " and read by an Amazon Polly voice" : ""}. It can make mistakes, so check the source.</span>
         </div>
       </article>
       <div class="playlist"><p class="playlist-label">Sources in this summary</p><ol>${sum.sources.map((src, i) => `
@@ -331,12 +331,23 @@ function renderSummary() {
     </div></div>`;
 }
 
-// Reads the summary aloud in the browser, the same text a voice assistant reads.
+// Plays the summary's Amazon Polly recording, the same audio voice assistants play. Without one,
+// the browser reads the text with its own voice.
+let player = null;
 function toggleListen(btn) {
-  const synth = window.speechSynthesis;
   const set = (on) => { btn.setAttribute("aria-pressed", on); btn.innerHTML = on ? "&#9632; Stop" : "&#9654; Listen"; };
+  const sum = state.meta.summary;
+  if (sum.audio) {
+    if (player && !player.paused) { player.pause(); player.currentTime = 0; set(false); return; }
+    player = player || new Audio(sum.audio);
+    player.onended = player.onerror = () => set(false);
+    set(true);
+    player.play().catch(() => set(false));
+    return;
+  }
+  const synth = window.speechSynthesis;
   if (synth.speaking) { synth.cancel(); set(false); return; }
-  const say = new SpeechSynthesisUtterance(state.meta.summary.spoken);
+  const say = new SpeechSynthesisUtterance(sum.spoken);
   say.lang = "en-US";
   say.onend = say.onerror = () => set(false);
   set(true);

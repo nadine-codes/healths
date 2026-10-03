@@ -102,6 +102,7 @@ Resources:
           GUARDRAIL_ID: !Ref GuardrailId
           GUARDRAIL_VERSION: !Ref GuardrailVersion
           CONTACT_EMAIL: !Ref ContactEmail
+          SITE_BUCKET: !Ref SiteBucket
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref NewsTable }
         - DynamoDBCrudPolicy: { TableName: !Ref FundingTable }
@@ -109,8 +110,11 @@ Resources:
         - DynamoDBCrudPolicy: { TableName: !Ref MetaTable }
         - Statement:
             - Effect: Allow
-              Action: [bedrock:InvokeModel, bedrock:ApplyGuardrail]
+              Action: [bedrock:InvokeModel, bedrock:ApplyGuardrail, polly:SynthesizeSpeech]
               Resource: "*"
+            - Effect: Allow  # summary recordings only
+              Action: s3:PutObject
+              Resource: !Sub ${SiteBucket.Arn}/audio/*
       Events:
         TwiceDaily:
           Type: ScheduleV2
@@ -123,6 +127,12 @@ Resources:
   SiteBucket:
     Type: AWS::S3::Bucket
     Properties:
+      LifecycleConfiguration:
+        Rules:
+          - Id: old-summary-recordings
+            Status: Enabled
+            Prefix: audio/
+            ExpirationInDays: 14
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true

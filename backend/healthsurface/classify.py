@@ -405,9 +405,9 @@ SUMMARY_SYSTEM = (
     "Every fact you write comes from the numbered item it is attached to. Reply with JSON only."
 )
 
-SUMMARY_MIN_WORDS, SUMMARY_MAX_WORDS = 110, 380
+SUMMARY_MIN_WORDS, SUMMARY_MAX_WORDS = 90, 320
 SUMMARY_MAX_CHARS = 3600  # the spoken version, with intro and sign-off, stays under Alexa's 4,500
-SUMMARY_MIN_ITEMS, SUMMARY_MAX_ITEMS = 4, 10
+SUMMARY_MIN_ITEMS, SUMMARY_MAX_ITEMS = 3, 10
 
 # Capitalized words a sentence may use without them appearing in its item.
 SPOKEN_ALLOWED = {
@@ -422,7 +422,7 @@ SPOKEN_ALLOWED = {
 # well something works, which a model tends to invent when asked why something matters.
 _MONEY_WORDS = re.compile(
     r"\b(grants?|loans?|awards?|awarded|acquisitions?|acquire[sd]?|IPO|investors?|bets?|plans?|planned|potential|"
-    r"solid|promising|significant|effective|works?|worked|safe|safer|confidence)\b", re.I)
+    r"solid|promis(?:e[sd]?|ing)|significant|effective|works?|worked|safe|safer|confidence)\b", re.I)
 _STOP = {"about", "after", "their", "there", "these", "those", "which", "where", "while", "would", "could", "should",
          "being", "other", "people", "study", "studies", "review", "health", "found", "shows", "new", "says"}
 
@@ -458,33 +458,33 @@ def summary_prompt(items: list[dict]) -> str:
                 else " | RESEARCH" if is_research_item(it) else "")
         lines.append(f"[{i}] {label}{kind} | {it['source_name']} | {it['title']}.{detail}")
     return (
-        "Write today's summary from the items below.\n"
-        f"- Pick the {SUMMARY_MIN_ITEMS + 3} to {SUMMARY_MAX_ITEMS - 1} most interesting items for a general listener. Skip dry "
-        "or minor ones. Favor discoveries, new treatments and approvals, big public health moves, and big money.\n"
-        "- 2 or 3 paragraphs, 180 to 300 words in total. First: research and discoveries. Second: treatments, "
-        "approvals and public health or policy moves. Third, its own paragraph, if worth it: the biggest funding.\n"
-        f"- Include at least {SUMMARY_MIN_RESEARCH} items marked RESEARCH, at least one marked TREATMENT OR POLICY, "
-        f"and at most {SUMMARY_MAX_FUNDING} marked FUNDING. A line about money, like \"Now, the money.\", only opens "
-        "the FUNDING paragraph.\n"
+        "Write today's summary from the stories below. The money paragraph is written for you; skip funding.\n"
+        f"- Pick the {SUMMARY_MIN_ITEMS} to {SUMMARY_MAX_ITEMS - 3} most interesting stories for a general listener. "
+        "Skip dry or minor ones. Favor discoveries, new treatments and approvals, and big public health moves.\n"
+        "- 2 paragraphs, 150 to 260 words in total. First: research and discoveries. Second: treatments, "
+        "approvals and public health or policy moves.\n"
+        f"- Include at least {SUMMARY_MIN_RESEARCH} stories marked RESEARCH and at least one marked TREATMENT OR POLICY.\n"
+        "- Sound like a person talking to a friend, not a press release. Use contractions like it's, they're and "
+        "that's. Mix short sentences with longer ones. Tie ideas together with words like so, but, meanwhile and "
+        "also. Never start two sentences in a row the same way, and say \"a study\" or \"a review\" at most once each.\n"
         "- Give each story two or three sentences: what happened, then why it matters to a listener, using only "
-        "what the item says. Give each FUNDING item one sentence: who raised or received how much, and where that is "
-        "reported. Say nothing about plans, investors or what the money means.\n"
-        "- Every sentence is attached to one item number and only says what that item says. Explain why it "
-        "matters in everyday words. Vary how you introduce items; do not start every sentence the same way.\n"
+        "what the story says.\n"
+        "- Every sentence is attached to one story number and only says what that story says. Do not copy our "
+        "summaries word for word.\n"
         "- Report, don't judge: say what a study looked at or reported, never that something works, is safe, or "
-        "what the evidence shows. Add no rankings like largest or first, and no claims about markets or investors, "
-        "unless the item says so. An SEC Form D filing reports money raised; it is not an announcement.\n"
-        "- You may add a few short linking sentences with \"item\": null, like \"Now, the money.\" They carry no facts, names or numbers, and they open the paragraph they introduce.\n"
-        "- Call money what the item calls it: an investment is not a grant, and a grant is not a raise.\n"
-        "- Say where an item comes from in words a listener follows, like \"a new peer-reviewed study\" or "
+        "what the evidence shows. Add no rankings like largest or first unless the story says so.\n"
+        "- You may add a short linking sentence of at most six words with \"item\": null, like \"Now, on to "
+        "treatments.\" or \"Closer to home, there's news too.\" It ends with a period, carries no facts, names or "
+        "numbers, and opens the paragraph it introduces.\n"
+        "- Call money what the story calls it: an investment is not a grant.\n"
+        "- Say where a story comes from in words a listener follows, like \"new peer-reviewed research\" or "
         "\"the FDA\". Always say a preprint has not been peer reviewed yet.\n"
         "- Write for the ear: no URLs, lists, markdown, parentheses or em dashes. Use only names and numbers "
-        "that appear in the item. Never use the words proven, breakthrough, miracle or cure.\n"
+        "that appear in the story. Never use the words proven, breakthrough, miracle or cure.\n"
         "- Do not greet the listener or sign off; that is added for you.\n"
-        "- Style only, these facts are made up: \"Your gut may have a say in how you sleep. A new peer-reviewed study "
-        "followed 400 adults and found the ones with more varied gut bacteria slept longer. It's early, but it's "
-        "another hint that the gut and brain talk more than we thought.\" Notice: a hook first, then the finding in "
-        "plain words, then why it matters. Do not copy the item summaries word for word.\n"
+        "- Style only, these facts are made up: \"Your gut might have a say in how well you sleep. Researchers "
+        "followed 400 adults, and the ones with more varied gut bacteria slept longer. It's early days, but it's "
+        "one more hint that your gut and your brain talk more than we thought.\"\n"
         'Return JSON: {"paragraphs": [[{"item": 4, "text": "..."}, {"item": null, "text": "..."}], [...]]}\n\n'
         + "\n".join(lines)
     )
@@ -504,8 +504,9 @@ def sentence_grounded(text: str, item: dict | None) -> bool:
         return False
     source = "" if item is None else f"{item['title']} {item.get('summary', '')} {item['source_name']} {item['label']}".lower()
     if item is None:
-        return _words(text) <= 6 and not re.search(r"\d", text) and \
-            all(w.lower() in SPOKEN_ALLOWED for w in re.findall(r"(?<![.!?:]\s)(?<=\s)[A-Z][\w'-]*", text))
+        # A linking line is a whole short sentence with no names, so it can't misattribute the next story.
+        return _words(text) <= 6 and text.endswith((".", "!", "?")) and not re.search(r"\d", text) and \
+            not re.findall(r"(?<![.!?:]\s)(?<=\s)[A-Z][\w'-]*", text)
     if item["label"] == "Preprint" and re.search(r"peer[- ]review", text, re.I) and \
             not re.search(r"not (?:yet |been )*peer[- ]review|hasn't been peer[- ]review", text, re.I):
         return False  # a preprint is never called peer reviewed
@@ -525,15 +526,25 @@ def sentence_grounded(text: str, item: dict | None) -> bool:
 
 _PLAIN_STARTS = {"a", "an", "the", "this", "these", "researchers", "scientists", "investigators", "new", "one",
                  "two", "study", "studies"}
-_PREPRINT_LEADS = ("In a preprint that hasn't been peer reviewed yet, ", "In another preprint, also not yet peer reviewed, ",
-                   "From a preprint still awaiting peer review, ", "In one more early preprint, not yet peer reviewed, ")
+_PREPRINT_NOTES = ("That's from a preprint, so it hasn't been peer reviewed yet.",
+                   "That one's a preprint too, not yet peer reviewed.",
+                   "It's also a preprint, still waiting on peer review.",
+                   "Another preprint, so no peer review yet.")
 
 
-def flag_preprint(text: str, nth: int = 0) -> str:
-    """Prefix a preprint sentence. The first lead-in is used once; the rest rotate, so no two in a row match."""
-    first = text.split(" ", 1)[0]
-    lead = first.lower() + text[len(first):] if first.lower() in _PLAIN_STARTS else text
-    return _PREPRINT_LEADS[nth if nth == 0 else 1 + (nth - 1) % (len(_PREPRINT_LEADS) - 1)] + lead
+def preprint_note(nth: int = 0) -> str:
+    """A sentence said right after a preprint's first sentence. The first note is used once; the rest rotate."""
+    return _PREPRINT_NOTES[nth if nth == 0 else 1 + (nth - 1) % (len(_PREPRINT_NOTES) - 1)]
+
+
+def join_sentences(texts: list[str]) -> str:
+    """Joins sentences; after a linking line that ends in a comma ("Meanwhile,"), the next word goes lowercase."""
+    out = []
+    for t in texts:
+        if out and out[-1].endswith(",") and t.split(" ", 1)[0].lower() in _PLAIN_STARTS | {"in", "on", "at", "more"}:
+            t = t[0].lower() + t[1:]
+        out.append(t)
+    return " ".join(out)
 
 
 def validate_summary(raw: dict, items: list[dict]) -> dict:
@@ -547,10 +558,15 @@ def validate_summary(raw: dict, items: list[dict]) -> dict:
                 continue
             idx, text = sent.get("item"), _clean(sent.get("text"))
             item = items[idx] if isinstance(idx, int) and 0 <= idx < len(items) else None
-            if not text or (idx is not None and item is None) or not sentence_grounded(text, item):
+            if not text or (idx is not None and item is None):
                 dropped += 1
                 continue
-            kept.append((idx, text))
+            # Checked one sentence at a time, so one bad sentence doesn't take its neighbor with it.
+            for part in re.split(r"(?<=[.!?])\s+(?=[A-Z])", text):
+                if sentence_grounded(part, item):
+                    kept.append((idx, part))
+                else:
+                    dropped += 1
         drafts.append(kept)
     # A linking line opens the paragraph it introduces: move any that end a paragraph to the next one.
     for n in range(len(drafts) - 1, -1, -1):
@@ -589,12 +605,12 @@ def validate_summary(raw: dict, items: list[dict]) -> dict:
     for para in drafts:
         kept = []
         for i, t in para:
-            if i is not None and items[i]["label"] == "Preprint" and i not in flagged:
-                t = flag_preprint(t, sum(items[j]["label"] == "Preprint" for j in flagged))
-                flagged.add(i)
             kept.append((i, t))
+            if i is not None and items[i]["label"] == "Preprint" and i not in flagged:
+                kept.append((i, preprint_note(sum(items[j]["label"] == "Preprint" for j in flagged))))
+                flagged.add(i)
         if any(i is not None for i, _ in kept):  # a paragraph of linking lines alone is dropped
-            paragraphs.append(" ".join(t for _, t in kept))
+            paragraphs.append(join_sentences([t for _, t in kept]))
             cited += [i for i in dict.fromkeys(i for i, _ in kept) if i is not None and i not in cited]
     text = " ".join(paragraphs)
     if not 2 <= len(paragraphs) <= 3:
@@ -612,16 +628,51 @@ def validate_summary(raw: dict, items: list[dict]) -> dict:
     return {"paragraphs": paragraphs, "sources": sources, "dropped": dropped}
 
 
+def spoken_company(name: str) -> str:
+    """"LISATA THERAPEUTICS, INC." -> "Lisata Therapeutics": no legal suffixes, no shouting."""
+    name = re.sub(r",?\s+(inc|incorporated|corp|corporation|llc|ltd|co|plc)\.?$", "", name.strip(), flags=re.I)
+    return name.title() if name.isupper() else name
+
+
+def _join(parts: list[str]) -> str:
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + ", and " + parts[-1]
+
+
+def funding_paragraph(funding: list[dict]) -> str:
+    """The money paragraph, written by code from the filings themselves so nothing in it can be invented."""
+    sec = [f for f in funding if f["label"].startswith("SEC")]
+    nih = [f for f in funding if f["label"].startswith("NIH")]
+    sentences = ["Now, the money."]
+    if sec:
+        raises = [f"{spoken_company(f['company'])} reported raising {f['amount']}" if n == 0 else
+                  f"{spoken_company(f['company'])} {f['amount']}" for n, f in enumerate(sec)]
+        sentences.append(f"In {'SEC filings' if len(sec) > 1 else 'an SEC filing'} this past week, {_join(raises)}.")
+    for n, f in enumerate(nih):
+        lead = "And on the research side, " if sec and n == 0 else "Also, " if n else ""
+        who = spoken_company(f["company"])
+        sentences.append(f"{lead}{who if lead else who[0].upper() + who[1:]} won a {f['amount']} {f['label']}.")
+    return " ".join(sentences)
+
+
 def todays_summary(items: list[dict], invoke: Invoke, attempts: int = 2) -> dict:
-    """A few paragraphs in HealthSurface's voice. Links come from the cited items, never from the model."""
-    prompt, last_err = summary_prompt(items), ValueError("no attempts")
+    """A few paragraphs in HealthSurface's voice. The model writes about stories; code writes the money
+    paragraph. Links come from the cited items, never from the model."""
+    stories = [it for it in items if not is_funding_item(it)]
+    funding = [it for it in items if is_funding_item(it) and it.get("company") and it.get("amount")][:SUMMARY_MAX_FUNDING]
+    prompt, last_err = summary_prompt(stories), ValueError("no attempts")
     for _ in range(attempts):
         try:
-            return validate_summary(parse_json(invoke(SUMMARY_SYSTEM, prompt)), items)
+            summary = validate_summary(parse_json(invoke(SUMMARY_SYSTEM, prompt)), stories)
+            break
         except Exception as err:  # noqa: BLE001 - a bad reply is retried once, then the old summary stays
             last_err = err
-            prompt = summary_prompt(items) + f"\n\nYour last reply was rejected ({err}). Fix that and reply again."
-    raise last_err
+            prompt = summary_prompt(stories) + f"\n\nYour last reply was rejected ({err}). Fix that and reply again."
+    else:
+        raise last_err
+    if funding:
+        summary["paragraphs"].append(funding_paragraph(funding))
+        summary["sources"] += [{k: f[k] for k in ("title", "url", "label", "source_name")} for f in funding]
+    return summary
 
 
 def spoken_summary(summary: dict, day: str) -> str:

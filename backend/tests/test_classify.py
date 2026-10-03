@@ -181,10 +181,19 @@ def test_summary_drops_ungrounded_sentences(text):
     assert not classify.sentence_grounded(text, summary_items()[2])
 
 
+def test_summary_drops_only_the_bad_sentence_in_an_entry():
+    reply = summary_reply()
+    reply["paragraphs"][0][0]["text"] += " These ECG tools work well in practice."  # judgment the source never makes
+    out = classify.validate_summary(reply, five_items())
+    assert "every minute counts for the heart." in out["paragraphs"][0] and "work well" not in out["paragraphs"][0]
+    assert out["dropped"] == 1
+
+
 def test_summary_linking_lines_carry_no_facts():
     assert classify.sentence_grounded("Now, the money.", None)
     assert not classify.sentence_grounded("Now, the WHO weighs in with 3 new rules.", None)
     assert not classify.sentence_grounded("And a few big investments closed this week.", None)
+    assert not classify.sentence_grounded("Meanwhile, over at the FDA,", None)  # names a source; no period
 
 
 def test_summary_always_says_a_preprint_is_not_peer_reviewed():
@@ -195,14 +204,14 @@ def test_summary_always_says_a_preprint_is_not_peer_reviewed():
                                           items[4])
     reply["paragraphs"][0][3]["text"] = "A second study looked at how wearables track sleep in older adults at home."
     out = classify.validate_summary(reply, items)
-    assert "In a preprint that hasn't been peer reviewed yet, a second study" in out["paragraphs"][0]
+    assert "older adults at home. That's from a preprint, so it hasn't been peer reviewed yet." in out["paragraphs"][0]
     reply["paragraphs"][0][3]["text"] = "A preprint, not yet peer reviewed, looked at how wearables track sleep in older adults."
     out = classify.validate_summary(reply, items)
-    assert "In a preprint that" not in out["paragraphs"][0]
+    assert "That's from a preprint" not in out["paragraphs"][0]
 
 
-def test_preprint_lead_ins_never_repeat_back_to_back():
-    leads = [classify.flag_preprint("A study looked at sleep.", n).split(",")[0] for n in range(8)]
+def test_preprint_notes_never_repeat_back_to_back():
+    leads = [classify.preprint_note(n) for n in range(8)]
     assert len(set(leads[:4])) == 4
     assert all(a != b for a, b in zip(leads, leads[1:]))
     assert leads.count(leads[0]) == 1
@@ -276,16 +285,45 @@ def test_summary_rejects_too_few_items():
         classify.validate_summary(reply, summary_items())
 
 
-def test_summary_retries_once_with_the_reason():
+def stories_reply():
+    """summary_reply() for the stories only (no NIH item), numbered as the model sees them."""
+    remap = {0: 0, 1: 1, 3: 2, 4: 3, None: None}
+    return {"paragraphs": [[{**sent, "item": remap[sent["item"]]} for sent in para]
+                           for para in summary_reply()["paragraphs"][:2]]}
+
+
+def test_summary_retries_once_with_the_reason_and_code_writes_the_money():
     prompts = []
     items = five_items()
+    items[2] = {**items[2], "company": "ACME BIO, INC.", "amount": "$2.5 million"}
+    items.append({"title": "LISATA THERAPEUTICS, INC. reported raising $351.9 million in an SEC Form D filing",
+                  "summary": "", "label": "SEC Form D", "source_name": "SEC Form D filing", "url": "https://sec.example/l",
+                  "company": "LISATA THERAPEUTICS, INC.", "amount": "$351.9 million"})
 
     def invoke(system, user):
         prompts.append(user)
-        return json.dumps({"paragraphs": []} if len(prompts) == 1 else summary_reply())
+        return json.dumps({"paragraphs": []} if len(prompts) == 1 else stories_reply())
 
     out = classify.todays_summary(items, invoke)
-    assert len(prompts) == 2 and "rejected" in prompts[1] and out["sources"]
+    assert len(prompts) == 2 and "rejected" in prompts[1] and "Acme" not in prompts[0]
+    assert out["paragraphs"][-1] == ("Now, the money. In an SEC filing this past week, Lisata Therapeutics reported "
+                                     "raising $351.9 million. And on the research side, Acme Bio won a $2.5 million NIH SBIR grant.")
+    assert [s["url"] for s in out["sources"]][-2:] == ["https://nih.example/3", "https://sec.example/l"]
+
+
+def test_sentence_after_a_comma_link_continues_in_lowercase():
+    assert classify.join_sentences(["In treatment news,", "A trial in Brazil tested calls.", "FDA cleared it."]) == \
+        "In treatment news, a trial in Brazil tested calls. FDA cleared it."
+    assert classify.join_sentences(["Meanwhile,", "FDA cleared a test."]) == "Meanwhile, FDA cleared a test."
+
+
+def test_money_paragraph_joins_several_raises():
+    funding = [{"label": "SEC Form D", "company": c, "amount": a} for c, a in
+               [("LISATA THERAPEUTICS, INC.", "$351.9 million"), ("Precision Neuroscience Corp", "$250 million"),
+                ("Alpfa Medical, Inc.", "$80.3 million")]]
+    assert classify.funding_paragraph(funding) == (
+        "Now, the money. In SEC filings this past week, Lisata Therapeutics reported raising $351.9 million, "
+        "Precision Neuroscience $250 million, and Alpfa Medical $80.3 million.")
 
 
 def test_spoken_summary_has_intro_and_disclaimer():

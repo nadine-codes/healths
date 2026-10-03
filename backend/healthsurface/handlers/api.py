@@ -23,7 +23,9 @@ def briefing(summary: dict | None) -> list[dict]:
         return []
     return [{"uid": f"healthsurface-summary-{summary['date']}", "updateDate": summary["generated_at"].replace("+00:00", ".0Z"),
              "titleText": f"{config.APP_NAME} summary for {summary['day']}", "mainText": summary["spoken"],
-             "redirectionUrl": config.SITE_URL}]
+             "redirectionUrl": config.SITE_URL,
+             # With a recording, Alexa plays our Amazon Polly voice instead of reading mainText.
+             **({"streamUrl": config.SITE_URL + summary["audio"]} if summary.get("audio") else {})}]
 
 
 def handler(event, context):

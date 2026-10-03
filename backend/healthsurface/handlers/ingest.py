@@ -11,7 +11,7 @@ from ..sources import funding as funding_src
 from ..sources import grants as grants_src
 from ..sources import jobs as jobs_src
 from ..sources import news as news_src
-from . import bedrock, store
+from . import bedrock, store, voice
 
 log = logging.getLogger()
 log.setLevel(logging.INFO)
@@ -246,6 +246,7 @@ def summary_items(today) -> list[dict]:
                           if r["source_kind"].startswith("NIH") else
                           f"{r['company']} reported raising {_spoken_money(r['amount_usd'])} in an SEC Form D filing"),
                 "summary": f"Project: {r['project_title']}." if r.get("project_title") else "",
+                "company": r["company"], "amount": _spoken_money(r["amount_usd"]),
                 "label": r["source_kind"], "source_name": r["source_name"], "url": r["source_url"]} for r in money]
     return [{k: s.get(k) for k in ("title", "summary", "label", "source_name", "url")} for s in picked] + funding
 
@@ -269,10 +270,17 @@ def ingest_summary(report: dict) -> None:
     else:
         raise last_err
     day, dropped = f"{now:%A}, {now:%B} {now.day}", summary.pop("dropped")
-    store.put_meta("summary", {**summary, "date": now.date().isoformat(), "day": day,
-                               "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                               "spoken": classify.spoken_summary(summary, day)})
-    report["summary"] = {"items": len(items), "cited": len(summary["sources"]), "dropped": dropped}
+    generated = datetime.now(timezone.utc)
+    spoken = classify.spoken_summary(summary, day)
+    try:  # a natural recorded voice; without it, Listen falls back to the browser's voice
+        audio = voice.record(spoken, f"audio/summary-{generated:%Y%m%dT%H%M%S}.mp3")
+    except Exception as err:  # noqa: BLE001 - the summary text still publishes
+        log.warning("summary recording failed: %s", err)
+        audio = None
+    store.put_meta("summary", {**summary, "date": now.date().isoformat(), "day": day, "spoken": spoken,
+                               "generated_at": generated.isoformat(timespec="seconds"), "audio": audio})
+    report["summary"] = {"items": len(items), "cited": len(summary["sources"]), "dropped": dropped,
+                         "audio": audio, "voice": voice.VOICE}
 
 
 STAGES = {"news": ingest_news, "retag": retag_news, "funding": ingest_funding, "jobs": ingest_jobs, "brief": ingest_brief,
