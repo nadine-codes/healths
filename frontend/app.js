@@ -85,7 +85,8 @@ const VIEWS = {
     filter(items, f) {
       return items.filter((i) => {
         if (!matchesTags(i, f)) return false;
-        if (f.stage && i.round_stage !== f.stage) return false;
+        if (f.stage === "none" ? i.round_stage : f.stage && i.round_stage !== f.stage) return false;
+        if (f.kind && i.source_kind !== f.kind) return false;
         if (f.amount === "unknown") return i.amount_usd == null;
         if (f.amount) {
           const [lo, hi] = f.amount.split("-").map((x) => (x ? Number(x) : null));
@@ -171,8 +172,25 @@ async function load(name) {
     return;
   }
   if (name === "jobs") fillCountries(state.data.jobs);
+  if (name === "funding") fillFundingFilters(state.data.funding);
   if (name === "news") renderFocus();
   render(name);
+}
+
+// Round stage keeps the taxonomy order but shows counts and disables stages with no records,
+// since SEC Form D filings never state a round. Source options come from the data.
+function fillFundingFilters(rows) {
+  const form = $('form[data-for="funding"]');
+  const stages = {}, kinds = {};
+  for (const r of rows) {
+    stages[r.round_stage || "none"] = (stages[r.round_stage || "none"] || 0) + 1;
+    kinds[r.source_kind] = (kinds[r.source_kind] || 0) + 1;
+  }
+  form.stage.innerHTML = `<option value="">All stages</option>` +
+    state.meta.taxonomy.round_stages.map((st) => `<option value="${esc(st)}"${stages[st] ? "" : " disabled"}>${esc(st)} (${stages[st] || 0})</option>`).join("") +
+    `<option value="none"${stages.none ? "" : " disabled"}>Not stated (${stages.none || 0})</option>`;
+  form.kind.innerHTML = `<option value="">All sources</option>` +
+    Object.entries(kinds).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<option value="${esc(k)}">${esc(k)} (${n})</option>`).join("");
 }
 
 // Country options come from the data, most common first, plus jobs with no stated country.
