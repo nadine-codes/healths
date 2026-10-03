@@ -171,6 +171,60 @@ def fetch_pubmed(days: int = 3, limit: int = 30) -> list[dict]:
     return items
 
 
+ATOM = "{http://www.w3.org/2005/Atom}"
+
+
+def fetch_atom(source: str, url: str, limit: int = 20) -> list[dict]:
+    status, body = http.get(url)
+    if status != 200:
+        raise RuntimeError(f"HTTP {status} for {url}")
+    items = []
+    for entry in ET.fromstring(body).iter(f"{ATOM}entry"):
+        link = next((l.get("href") for l in entry.findall(f"{ATOM}link") if l.get("rel", "alternate") == "alternate"), None)
+        if not link:
+            continue
+        items.append(make_item(source, link, entry.findtext(f"{ATOM}title") or "",
+                               (entry.findtext(f"{ATOM}published") or entry.findtext(f"{ATOM}updated") or "")[:10],
+                               entry.findtext(f"{ATOM}summary") or ""))
+        if len(items) >= limit:
+            break
+    return items
+
+
+def fetch_cms_newsroom(limit: int = 20) -> list[dict]:
+    """CMS packs an HTML anchor into <link> and leaves <title> empty; unpack both."""
+    meta = config.NEWS_SOURCES["cms_newsroom"]
+    status, body = http.get(meta["feed"])
+    if status != 200:
+        raise RuntimeError(f"HTTP {status} for {meta['feed']}")
+    items = []
+    for node in ET.fromstring(body).iter("item"):
+        raw = urllib.parse.unquote(node.findtext("link") or "")
+        m = re.search(r'href="([^"]+)"[^>]*>(.*?)(</a>|$)', raw)
+        if not m:
+            continue
+        url = urllib.parse.urljoin("https://www.cms.gov/", m.group(1))
+        title = node.findtext("title") or m.group(2)
+        try:
+            published = datetime.strptime((node.findtext("pubDate") or "")[:15].strip(), "%a, %m/%d/%Y").date().isoformat()
+        except ValueError:
+            published = date.today().isoformat()
+        items.append(make_item("cms_newsroom", url, title, published, node.findtext("description") or ""))
+        if len(items) >= limit:
+            break
+    return items
+
+
+def fetch_cdc_newsroom(limit: int = 15) -> list[dict]:
+    """CDC's feed links go through a download redirect; resolve each to its cdc.gov page."""
+    items = fetch_rss("cdc_newsroom", config.NEWS_SOURCES["cdc_newsroom"]["feed"], limit=limit)
+    for item in items:
+        final = http.resolve_redirect(item["url"])
+        if final and final.startswith("https://www.cdc.gov/"):
+            item.update(url=final, id=item_id(final))
+    return items
+
+
 def fetch_commercial(source: str) -> list[dict]:
     return fetch_rss(source, config.NEWS_SOURCES[source]["feed"], limit=20)
 
@@ -207,6 +261,10 @@ FETCHERS = {
     "openfda_devices": fetch_openfda_devices,
     "medrxiv": fetch_medrxiv,
     "pubmed": fetch_pubmed,
+    "kff_health_news": lambda: fetch_rss("kff_health_news", config.NEWS_SOURCES["kff_health_news"]["feed"], limit=20),
+    "the_conversation": lambda: fetch_atom("the_conversation", config.NEWS_SOURCES["the_conversation"]["feed"]),
+    "cms_newsroom": fetch_cms_newsroom,
+    "cdc_newsroom": fetch_cdc_newsroom,
     **{k: (lambda k=k: fetch_commercial(k)) for k, v in config.NEWS_SOURCES.items() if v.get("commercial")},
 }
 FETCHERS = {k: fn for k, fn in FETCHERS.items() if config.NEWS_SOURCES[k].get("enabled", True)}

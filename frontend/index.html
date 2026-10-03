@@ -22,10 +22,12 @@
       <p class="tagline" data-tagline>Health news, funding and jobs, labeled by source type.</p>
     </div>
     <nav class="sections" aria-label="Sections">
-      <div class="wrap sections-inner" role="tablist">
-        <button role="tab" id="tab-news" aria-controls="panel-news" aria-selected="true">News</button>
-        <button role="tab" id="tab-funding" aria-controls="panel-funding" aria-selected="false">Funding</button>
-        <button role="tab" id="tab-jobs" aria-controls="panel-jobs" aria-selected="false">Jobs</button>
+      <div class="wrap sections-inner">
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tab-news" aria-controls="panel-news" aria-selected="true">News</button>
+          <button role="tab" id="tab-funding" aria-controls="panel-funding" aria-selected="false">Funding</button>
+          <button role="tab" id="tab-jobs" aria-controls="panel-jobs" aria-selected="false">Jobs</button>
+        </div>
         <span class="disclaimer" data-disclaimer>This is a reading list, not medical advice.</span>
       </div>
     </nav>
@@ -55,7 +57,7 @@
           <h2>Funding</h2>
           <p class="count" data-count="funding"></p>
         </div>
-        <p class="dek">Who raised money, from SEC Form D filings (amount, date and company as filed) and funding announcements in the news. A round and its investors appear only when a source states them.</p>
+        <p class="dek">Who raised money, from SEC Form D filings (amount, date and company as filed), NIH small business research grants, and funding announcements in the news. A round and its investors appear only when a source states them.</p>
         <form class="filters" data-for="funding">
           <label>Sector <select name="sector"></select></label>
           <label>Focus area <select name="focus"></select></label>
@@ -109,7 +111,7 @@
       <p class="footer-brand">HealthSurface</p>
       <p>Every item links to its original source. Summaries are written in our own words by an AI model and may contain mistakes. Source type describes what kind of source an item is, not how reliable it is.</p>
       <p>Peer-reviewed study listings come from PubMed, a service of the U.S. National Library of Medicine (NCBI). See NCBI's <a href="https://www.ncbi.nlm.nih.gov/home/about/policies/" target="_blank" rel="noopener">disclaimer and copyright notice</a>. NCBI does not endorse HealthSurface. Journal publishers or authors may hold copyright in the underlying articles.</p>
-      <p>Remote jobs marked "Via Remote OK" come from <a href="https://remoteok.com" target="_blank" rel="noopener">Remote OK</a>. Regulatory items come from openFDA (public domain). Funding filings come from SEC EDGAR.</p>
+      <p>Remote jobs marked "Via Remote OK" come from <a href="https://remoteok.com" target="_blank" rel="noopener">Remote OK</a>. Regulatory items come from openFDA (public domain). Funding comes from SEC EDGAR filings and NIH RePORTER grants. Reported news comes from KFF Health News (CC BY-NC-ND 4.0) and The Conversation (CC BY-ND 4.0); press releases from the CMS and CDC newsrooms.</p>
       <p data-last-run></p>
     </div>
   </footer>

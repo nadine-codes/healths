@@ -24,6 +24,17 @@ NEWS_SOURCES = {
     "openfda_devices": {"name": "openFDA Device Clearances", "label": "Regulatory action", "free_to_read": True, "commercial": False},
     "medrxiv": {"name": "medRxiv", "label": "Preprint", "free_to_read": True, "commercial": False},
     "pubmed": {"name": "PubMed", "label": "Peer-reviewed study", "free_to_read": True, "commercial": False},
+    # Open-license newsrooms. We show only headline, link, date and our own summary, credited by name.
+    "kff_health_news": {"name": "KFF Health News", "label": "Reported news", "free_to_read": True, "commercial": False,
+                        "feed": "https://kffhealthnews.org/feed/",
+                        "terms": "CC BY-NC-ND 4.0; RSS offered for ingestion (kffhealthnews.org/syndication)"},
+    "the_conversation": {"name": "The Conversation", "label": "Reported news", "free_to_read": True, "commercial": False,
+                         "feed": "https://theconversation.com/us/health/articles.atom",
+                         "terms": "CC BY-ND 4.0 (theconversation.com/us/republishing-guidelines)"},
+    "cms_newsroom": {"name": "CMS Newsroom", "label": "Press release", "free_to_read": True, "commercial": False,
+                     "feed": "https://www.cms.gov/newsroom/rss-feeds", "terms": "US government work, public domain"},
+    "cdc_newsroom": {"name": "CDC Newsroom", "label": "Press release", "free_to_read": True, "commercial": False,
+                     "feed": "https://tools.cdc.gov/api/v2/resources/media/132608.rss", "terms": "US government work, public domain"},
     # Commercial outlets are disabled. MedCity News terms prohibit automated access, republishing and
     # commercial use without consent; the others block AWS IPs and were not cleared. Kept for the record.
     "medcity": {"name": "MedCity News", "label": "Reported news", "free_to_read": True, "commercial": True,

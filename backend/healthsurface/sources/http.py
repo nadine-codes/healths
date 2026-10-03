@@ -23,6 +23,25 @@ def get(url: str, *, timeout: int = 20, max_bytes: int | None = None, headers: d
         return err.code, b""
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+def resolve_redirect(url: str, timeout: int = 10) -> str | None:
+    """Return the Location of a single redirect without following it (or None)."""
+    opener = urllib.request.build_opener(_NoRedirect)
+    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": config.USER_AGENT})
+    try:
+        opener.open(req, timeout=timeout)
+    except urllib.error.HTTPError as err:
+        if err.code in (301, 302, 303, 307, 308):
+            return err.headers.get("Location")
+    except OSError:
+        pass
+    return None
+
+
 def get_json(url: str, **kw):
     status, body = get(url, **kw)
     if status != 200:

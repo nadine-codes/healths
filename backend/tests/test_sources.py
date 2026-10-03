@@ -51,3 +51,24 @@ def test_disabled_sources_are_not_fetched():
     from healthsurface import config
     assert "medcity" not in news.FETCHERS
     assert all(config.NEWS_SOURCES[k].get("enabled", True) for k in news.FETCHERS)
+
+
+def test_nih_grant_record():
+    from healthsurface.sources import grants
+    rec = grants.to_record({"appl_id": 11525063, "organization": {"org_name": "KINEA BIO, INC."}, "award_amount": 1021458,
+                            "award_notice_date": "2026-09-23T00:00:00", "activity_code": "R42",
+                            "agency_ic_admin": {"abbreviation": "NIAMS"}, "project_title": "Gene delivery for neuromuscular disease"})
+    assert rec["round_stage"] == "Grant" and rec["source_kind"] == "NIH STTR grant"
+    assert rec["company"] == "Kinea Bio, Inc." and rec["date"] == "2026-09-23"
+    assert rec["source_url"] == "https://reporter.nih.gov/project-details/11525063"
+
+
+def test_cms_feed_link_unpacking(monkeypatch):
+    from healthsurface.sources import http as h
+    feed = (b'<rss><channel><item><title></title><link>https://www.cms.gov/%3Ca%20href%3D%22/newsroom/press-releases/x%22'
+            b'%20hreflang%3D%22en%22%3ECMS%20does%20a%20thing%3C/a%3E</link><pubDate>Fri, 10/02/2026 - 09:38</pubDate>'
+            b'<description>d</description></item></channel></rss>')
+    monkeypatch.setattr(h, "get", lambda url, **kw: (200, feed))
+    [item] = news.fetch_cms_newsroom()
+    assert item["url"] == "https://www.cms.gov/newsroom/press-releases/x"
+    assert item["title"] == "CMS does a thing" and item["date"] == "2026-10-02" and item["label"] == "Press release"

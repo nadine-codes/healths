@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from .. import classify, config
 from ..sources import funding as funding_src
+from ..sources import grants as grants_src
 from ..sources import jobs as jobs_src
 from ..sources import news as news_src
 from . import bedrock, store
@@ -100,8 +101,13 @@ def funding_from_story(story: dict, f: dict) -> dict:
 def ingest_funding(report: dict) -> None:
     existing = {r["id"] for r in store.scan_all(store.funding, "id")}
     rows = funding_src.fetch_new(existing)
-    store.put_many(store.funding, rows)
-    report["funding"] = {"form_d_new": len(rows)}
+    try:
+        grants = grants_src.fetch_new(existing)
+    except Exception as err:  # noqa: BLE001 - grants are additive; Form D still lands
+        log.warning("NIH RePORTER failed: %s", err)
+        grants = []
+    store.put_many(store.funding, rows + grants)
+    report["funding"] = {"form_d_new": len(rows), "nih_grants_new": len(grants)}
 
 
 JOB_FIELDS = ("id", "company", "title", "url", "location", "remote", "posted", "source", "source_name",

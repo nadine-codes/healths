@@ -95,7 +95,8 @@ const VIEWS = {
       });
     },
     card(i) {
-      const facts = [i.round_stage, i.investors?.length ? "Investors: " + i.investors.join(", ") : null,
+      const facts = [i.project_title ? `Project: ${i.project_title}` : null, i.round_stage,
+        i.investors?.length ? (i.round_stage === "Grant" ? "Funder: " : "Investors: ") + i.investors.join(", ") : null,
         i.offering_amount_usd ? `Total offering ${fmtMoney(i.offering_amount_usd)}` : null].filter(Boolean);
       const formD = i.source_kind === "SEC Form D";
       return `<li class="row">
