@@ -23,7 +23,8 @@ One free reading list with three tabs that share the same Sector and Focus area 
 - **Funding:** 174 records from SEC Form D filings and NIH small business research grants. Amounts come from the filings themselves. A round or investor is shown only when a source states it.
 - **Jobs:** 1,460 open roles at 69 health companies, from verified company job boards (Greenhouse, Lever, Ashby) and Remote OK. Filter by function, 36 job types, employment type, country and remote.
 
-- **Ask what's new:** a question box that answers only from the stored stories, filings and job posts, lists its sources with their Source type, and refuses "should I" questions with a pointer to what recent stories report. Questions are never stored or logged.
+- **Daily summary you can listen to:** a short AI-written summary of the day's top stories and funding, linking every source it mentions, read aloud by an Amazon Polly voice (the Listen button).
+- **Ask what's new:** a chat that opens from the HS logo button in the bottom-right corner on every tab. It answers only from the stored stories, filings and job posts, lists its sources with their Source type, and refuses "should I" questions with a pointer to what recent stories report. Questions are never stored or logged.
 
 No accounts, no personal data, no medical advice. Every item links to its original source.
 
@@ -53,6 +54,7 @@ EventBridge Scheduler (twice a day, no retries)
    -> Ingest Lambda -> 8 news sources, SEC EDGAR, NIH RePORTER, job boards
                     -> Amazon Bedrock (Nova Lite) + Bedrock Guardrails
                     -> DynamoDB (news, funding, jobs, run metadata)
+                    -> Amazon Polly -> daily summary audio in S3
 Visitor -> CloudFront -> S3 (static site, Origin Access Control)
                       -> /api/* -> API Gateway HTTP API -> read-only API Lambda
                       -> POST /api/ask -> Ask Lambda -> rate limits (DynamoDB) -> Nova Lite + Ask guardrail
