@@ -142,6 +142,8 @@ def summary_reply(**overrides):
         [{"item": 0, "text": "A new peer-reviewed study tested an AI model that reads ECGs to flag heart attacks early, "
                              "which could help emergency rooms sort patients faster when every minute counts for the heart."},
          {"item": 3, "text": "Researchers say the ECG model was tested on thousands of tracings from busy hospitals."},
+         {"item": 0, "text": "The study team says the model reads each ECG in seconds, so heart attacks could be flagged "
+                             "while a patient is still waiting to be seen by a doctor."},
          {"item": 4, "text": "A second peer-reviewed study looked at how wearables track sleep in older adults at home."}],
         [{"item": None, "text": "Now, the regulators."},
          {"item": 1, "text": "The FDA cleared a home blood test that needs only a finger prick, so some routine lab "
@@ -149,7 +151,8 @@ def summary_reply(**overrides):
          {"item": 1, "text": "The cleared test sends its blood results to a phone app within minutes of the finger prick."}],
         [{"item": None, "text": "And finally, the money."},
          {"item": 2, "text": "Acme Bio was awarded a $2.5 million NIH grant to build faster sepsis tests, which matters "
-                             "because sepsis moves quickly and early tests help hospitals act sooner."}],
+                             "because sepsis moves quickly and early tests help hospitals act sooner."},
+         {"item": 2, "text": "The sepsis grant comes through the NIH small business program for faster tests."}],
     ]}
     return {**base, **overrides}
 
@@ -181,18 +184,19 @@ def test_summary_drops_ungrounded_sentences(text):
 def test_summary_linking_lines_carry_no_facts():
     assert classify.sentence_grounded("Now, the money.", None)
     assert not classify.sentence_grounded("Now, the WHO weighs in with 3 new rules.", None)
+    assert not classify.sentence_grounded("And a few big investments closed this week.", None)
 
 
 def test_summary_always_says_a_preprint_is_not_peer_reviewed():
     items = five_items()
     items[4] = {**items[4], "label": "Preprint"}
     reply = summary_reply()
-    reply["paragraphs"][0][2]["text"] = "A second peer-reviewed study looked at how wearables track sleep in older adults."
+    reply["paragraphs"][0][3]["text"] = "A second peer-reviewed study looked at how wearables track sleep in older adults."
     assert "https://pubmed.example/5" not in [s["url"] for s in classify.validate_summary(reply, items)["sources"]]
-    reply["paragraphs"][0][2]["text"] = "A second study looked at how wearables track sleep in older adults at home."
+    reply["paragraphs"][0][3]["text"] = "A second study looked at how wearables track sleep in older adults at home."
     out = classify.validate_summary(reply, items)
     assert "In a preprint that hasn't been peer reviewed yet, a second study" in out["paragraphs"][0]
-    reply["paragraphs"][0][2]["text"] = "A preprint, not yet peer reviewed, looked at how wearables track sleep in older adults."
+    reply["paragraphs"][0][3]["text"] = "A preprint, not yet peer reviewed, looked at how wearables track sleep in older adults."
     out = classify.validate_summary(reply, items)
     assert "In a preprint that" not in out["paragraphs"][0]
 
@@ -202,6 +206,52 @@ def test_preprint_lead_ins_never_repeat_back_to_back():
     assert len(set(leads[:4])) == 4
     assert all(a != b for a, b in zip(leads, leads[1:]))
     assert leads.count(leads[0]) == 1
+
+
+def test_summary_linking_line_moves_to_the_paragraph_it_introduces():
+    reply = summary_reply()
+    reply["paragraphs"][0].append(reply["paragraphs"][1].pop(0))  # "Now, the regulators." ends paragraph one
+    out = classify.validate_summary(reply, five_items())
+    assert not out["paragraphs"][0].endswith("regulators.") and out["paragraphs"][1].startswith("Now, the regulators.")
+
+
+def test_summary_money_words_must_match_the_item():
+    press = {"title": "Administration announces $55 million investment in rural care", "summary": "",
+             "label": "Press release", "source_name": "CMS Newsroom"}
+    assert classify.sentence_grounded("The administration put $55 million into rural care.", press)
+    assert not classify.sentence_grounded("The administration awarded a $55 million grant for rural care.", press)
+
+
+def test_summary_caps_funding_items():
+    items = five_items() + [{"title": f"Co{n} reported raising $1{n} million in an SEC Form D filing", "summary": "",
+                             "label": "SEC Form D", "source_name": "SEC Form D filing", "url": f"https://sec.example/{n}"}
+                            for n in range(4)]
+    reply = summary_reply()
+    reply["paragraphs"][2] += [{"item": 5 + n, "text": f"Co{n} reported raising $1{n} million in an SEC filing."} for n in range(4)]
+    out = classify.validate_summary(reply, items)
+    funding = [s for s in out["sources"] if s["label"].startswith(("SEC", "NIH"))]
+    assert len(funding) == 3 and "Co3" not in out["paragraphs"][2] and out["dropped"] == 2
+
+
+def test_summary_needs_a_treatment_or_policy_item_when_one_exists():
+    reply = summary_reply()
+    del reply["paragraphs"][1]  # the FDA clearance paragraph
+    reply["paragraphs"][0].append({"item": 4, "text": "Wearables now track sleep in older adults at home, a study found."})
+    with pytest.raises(ValueError, match="TREATMENT OR POLICY"):
+        classify.validate_summary(reply, five_items())
+
+
+def test_summary_funding_gets_one_sentence_and_no_invented_plans():
+    form_d = {"title": "LISATA THERAPEUTICS, INC. reported raising $351.9 million in an SEC Form D filing", "summary": "",
+              "label": "SEC Form D", "source_name": "SEC Form D filing", "url": "https://sec.example/l"}
+    assert not classify.sentence_grounded("Lisata Therapeutics plans to use the funds for new therapies.", form_d)
+    assert not classify.sentence_grounded("Investors see potential in Lisata Therapeutics.", form_d)
+    items = five_items() + [form_d]
+    reply = summary_reply()
+    reply["paragraphs"][2] += [{"item": 5, "text": "Lisata Therapeutics reported raising $351.9 million in an SEC filing."},
+                               {"item": 5, "text": "That money for Lisata Therapeutics shows up in the SEC filing."}]
+    out = classify.validate_summary(reply, items)
+    assert out["paragraphs"][2].count("Lisata") == 1 and out["dropped"] == 1
 
 
 def test_summary_rejects_too_few_items():

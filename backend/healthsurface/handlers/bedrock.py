@@ -9,9 +9,8 @@ from botocore.config import Config
 
 _client = boto3.client("bedrock-runtime", config=Config(retries={"max_attempts": 3, "mode": "adaptive"}, read_timeout=30))
 MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.amazon.nova-micro-v1:0")
-# The daily summary is written for the ear, so it uses a stronger writer (about two calls a day).
-# Claude needs the account's Anthropic use-case form on file; until then Nova Pro writes it.
-SUMMARY_MODEL_ID = os.environ.get("SUMMARY_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
+# The daily summary is written for the ear, so it uses a newer writer (about two calls a day).
+SUMMARY_MODEL_ID = os.environ.get("SUMMARY_MODEL_ID", "us.amazon.nova-2-lite-v1:0")
 SUMMARY_FALLBACK_MODEL_ID = "us.amazon.nova-pro-v1:0"
 GUARDRAIL_ID = os.environ.get("GUARDRAIL_ID", "")
 GUARDRAIL_VERSION = os.environ.get("GUARDRAIL_VERSION", "DRAFT")

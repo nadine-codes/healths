@@ -373,7 +373,7 @@ SUMMARY_SYSTEM = (
     "Every fact you write comes from the numbered item it is attached to. Reply with JSON only."
 )
 
-SUMMARY_MIN_WORDS, SUMMARY_MAX_WORDS = 120, 380
+SUMMARY_MIN_WORDS, SUMMARY_MAX_WORDS = 110, 380
 SUMMARY_MAX_CHARS = 3600  # the spoken version, with intro and sign-off, stays under Alexa's 4,500
 SUMMARY_MIN_ITEMS, SUMMARY_MAX_ITEMS = 4, 10
 
@@ -386,8 +386,27 @@ SPOKEN_ALLOWED = {
     "services", "national", "institutes", "health", "securities", "exchange", "commission", "form", "d",
     "today", "today's", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
 }
+# Words a sentence may use only when its item does: money terms, and claims about plans, investors or how
+# well something works, which a model tends to invent when asked why something matters.
+_MONEY_WORDS = re.compile(
+    r"\b(grants?|loans?|awards?|awarded|acquisitions?|acquire[sd]?|IPO|investors?|bets?|plans?|planned|potential|"
+    r"solid|promising|significant|effective|works?|worked|safe|safer|confidence)\b", re.I)
 _STOP = {"about", "after", "their", "there", "these", "those", "which", "where", "while", "would", "could", "should",
          "being", "other", "people", "study", "studies", "review", "health", "found", "shows", "new", "says"}
+
+
+SUMMARY_MAX_FUNDING = 3
+_TREATMENT_RE = re.compile(r"\b(treat\w*|therap\w*|drugs?|vaccin\w*|approv\w*|clear(s|ed|ance)|device|surgery|medicine)\b", re.I)
+
+
+def is_funding_item(item: dict) -> bool:
+    return item["label"].startswith(("SEC", "NIH"))
+
+
+def is_treatment_item(item: dict) -> bool:
+    """Treatments, approvals and public health or policy moves: what the second paragraph is for."""
+    return item["label"] in ("Regulatory action", "Press release") or \
+        (not is_funding_item(item) and bool(_TREATMENT_RE.search(f"{item['title']} {item.get('summary', '')}")))
 
 
 def summary_prompt(items: list[dict]) -> str:
@@ -395,19 +414,26 @@ def summary_prompt(items: list[dict]) -> str:
     for i, it in enumerate(items):
         detail = f" Our summary: {it['summary']}" if it.get("summary") else ""
         label = "Preprint, not yet peer reviewed" if it["label"] == "Preprint" else it["label"]
-        lines.append(f"[{i}] {label} | {it['source_name']} | {it['title']}.{detail}")
+        kind = " | FUNDING" if is_funding_item(it) else " | TREATMENT OR POLICY" if is_treatment_item(it) else ""
+        lines.append(f"[{i}] {label}{kind} | {it['source_name']} | {it['title']}.{detail}")
     return (
         "Write today's summary from the items below.\n"
-        f"- Pick the {SUMMARY_MIN_ITEMS + 2} to {SUMMARY_MAX_ITEMS - 2} most interesting items for a general listener. Skip dry "
+        f"- Pick the {SUMMARY_MIN_ITEMS + 3} to {SUMMARY_MAX_ITEMS - 1} most interesting items for a general listener. Skip dry "
         "or minor ones. Favor discoveries, new treatments and approvals, big public health moves, and big money.\n"
-        "- 2 or 3 paragraphs, 200 to 300 words in total. First: research and discoveries. Second: treatments, "
+        "- 2 or 3 paragraphs, 180 to 300 words in total. First: research and discoveries. Second: treatments, "
         "approvals and public health or policy moves. Third, its own paragraph, if worth it: the biggest funding.\n"
+        "- Include at least one item marked TREATMENT OR POLICY, and at most "
+        f"{SUMMARY_MAX_FUNDING} items marked FUNDING.\n"
+        "- Give each story two or three sentences: what happened, then why it matters to a listener, using only "
+        "what the item says. Give each FUNDING item one sentence: who raised or received how much, and where that is "
+        "reported. Say nothing about plans, investors or what the money means.\n"
         "- Every sentence is attached to one item number and only says what that item says. Explain why it "
         "matters in everyday words. Vary how you introduce items; do not start every sentence the same way.\n"
         "- Report, don't judge: say what a study looked at or reported, never that something works, is safe, or "
         "what the evidence shows. Add no rankings like largest or first, and no claims about markets or investors, "
         "unless the item says so. An SEC Form D filing reports money raised; it is not an announcement.\n"
-        "- You may add a few short linking sentences with \"item\": null, like \"Now, the money.\" They carry no facts, names or numbers.\n"
+        "- You may add a few short linking sentences with \"item\": null, like \"Now, the money.\" They carry no facts, names or numbers, and they open the paragraph they introduce.\n"
+        "- Call money what the item calls it: an investment is not a grant, and a grant is not a raise.\n"
         "- Say where an item comes from in words a listener follows, like \"a new peer-reviewed study\" or "
         "\"the FDA\". Always say a preprint has not been peer reviewed yet.\n"
         "- Write for the ear: no URLs, lists, markdown, parentheses or em dashes. Use only names and numbers "
@@ -436,11 +462,14 @@ def sentence_grounded(text: str, item: dict | None) -> bool:
         return False
     source = "" if item is None else f"{item['title']} {item.get('summary', '')} {item['source_name']} {item['label']}".lower()
     if item is None:
-        return _words(text) <= 14 and not re.search(r"\d", text) and \
+        return _words(text) <= 6 and not re.search(r"\d", text) and \
             all(w.lower() in SPOKEN_ALLOWED for w in re.findall(r"(?<![.!?:]\s)(?<=\s)[A-Z][\w'-]*", text))
     if item["label"] == "Preprint" and re.search(r"peer[- ]review", text, re.I) and \
             not re.search(r"not (?:yet |been )*peer[- ]review|hasn't been peer[- ]review", text, re.I):
         return False  # a preprint is never called peer reviewed
+    for word in _MONEY_WORDS.findall(text):  # "grant" only if the item says grant, and so on
+        if not re.search(r"\b" + re.escape(word.lower().rstrip("s")[:5]), source):
+            return False
     for num in re.findall(r"\d[\d,.]*\d|\d", text):
         if num.strip(".,") not in source.replace(",", "") and num.replace(",", "").strip(".") not in source.replace(",", ""):
             return False
@@ -481,6 +510,30 @@ def validate_summary(raw: dict, items: list[dict]) -> dict:
                 continue
             kept.append((idx, text))
         drafts.append(kept)
+    # A linking line opens the paragraph it introduces: move any that end a paragraph to the next one.
+    for n in range(len(drafts) - 1, -1, -1):
+        while drafts[n] and drafts[n][-1][0] is None:
+            line = drafts[n].pop()
+            if n + 1 < len(drafts):
+                drafts[n + 1].insert(0, line)
+    # A funding record is one fact, so it gets one sentence; anything more would be invented.
+    said = set()
+    for n, para in enumerate(drafts):
+        kept = []
+        for i, t in para:
+            if i is not None and is_funding_item(items[i]) and not items[i].get("summary"):
+                if i in said:
+                    dropped += 1
+                    continue
+                said.add(i)
+            kept.append((i, t))
+        drafts[n] = kept
+    # At most SUMMARY_MAX_FUNDING funding items: sentences about any later ones are dropped.
+    funding = list(dict.fromkeys(i for para in drafts for i, _ in para if i is not None and is_funding_item(items[i])))
+    extra = set(funding[SUMMARY_MAX_FUNDING:])
+    for n, para in enumerate(drafts):
+        drafts[n] = [(i, t) for i, t in para if i not in extra]
+        dropped += len(para) - len(drafts[n])
     # A preprint is always called out as not yet peer reviewed; code adds it when the model did not.
     flagged = {i for para in drafts for i, t in para if re.search(r"preprint|not (?:yet |been )*peer[- ]review", t, re.I)}
     paragraphs, cited = [], []
@@ -501,6 +554,8 @@ def validate_summary(raw: dict, items: list[dict]) -> dict:
         raise ValueError(f"summary length out of range ({_words(text)} words, {dropped} sentences dropped as ungrounded)")
     if not SUMMARY_MIN_ITEMS <= len(cited) <= SUMMARY_MAX_ITEMS:
         raise ValueError(f"summary must cover {SUMMARY_MIN_ITEMS} to {SUMMARY_MAX_ITEMS} items, not {len(cited)}")
+    if any(is_treatment_item(it) for it in items) and not any(is_treatment_item(items[i]) for i in cited):
+        raise ValueError("summary must include at least one item marked TREATMENT OR POLICY")
     sources = [{k: items[i][k] for k in ("title", "url", "label", "source_name") if items[i].get(k)} for i in cited]
     return {"paragraphs": paragraphs, "sources": sources, "dropped": dropped}
 

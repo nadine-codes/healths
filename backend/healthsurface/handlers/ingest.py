@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from botocore.exceptions import ClientError
 
 from .. import classify, config
 from ..sources import funding as funding_src
@@ -237,7 +236,7 @@ def summary_items(today) -> list[dict]:
     week = (today - timedelta(days=7)).isoformat()
     money = sorted((r for r in store.scan_all(store.funding) if r.get("amount_usd") and (r.get("date") or "") >= week
                     and r.get("source_kind") != "News story"),  # news funding is already in the stories
-                   key=lambda r: r["amount_usd"], reverse=True)[:4]
+                   key=lambda r: r["amount_usd"], reverse=True)[:classify.SUMMARY_MAX_FUNDING + 1]
     funding = [{"title": (f"{r['company']} was awarded a {_spoken_money(r['amount_usd'])} {r['source_kind']}"
                           if r["source_kind"].startswith("NIH") else
                           f"{r['company']} reported raising {_spoken_money(r['amount_usd'])} in an SEC Form D filing"),
@@ -246,27 +245,24 @@ def summary_items(today) -> list[dict]:
     return [{k: s.get(k) for k in ("title", "summary", "label", "source_name", "url")} for s in picked] + funding
 
 
-def _summary_invoke(report: dict):
-    def invoke(system: str, user: str) -> str:
-        for model in (bedrock.SUMMARY_MODEL_ID, bedrock.SUMMARY_FALLBACK_MODEL_ID):
-            try:
-                text = bedrock.invoke(system, user, 1500, model, 0.5)
-                report["summary_model"] = model
-                return text
-            except ClientError as err:  # e.g. model access not granted yet: try the next writer
-                log.warning("summary model %s failed: %s", model, err)
-        raise RuntimeError("no summary model available")
-    return invoke
-
-
 def ingest_summary(report: dict) -> None:
-    """The daily summary: one model call (two if the first reply fails a check) each run."""
+    """The daily summary: usually one model call per run, at most four."""
     invoke = _model()
     if not invoke:
         return
     now = datetime.now(SUMMARY_TZ)
     items = summary_items(now.date())
-    summary = classify.todays_summary(items, _summary_invoke(report))
+    # Nova 2 Lite writes it; if its replies fail the checks twice (or the model is unavailable), Nova Pro tries.
+    for model in (bedrock.SUMMARY_MODEL_ID, bedrock.SUMMARY_FALLBACK_MODEL_ID):
+        try:
+            summary = classify.todays_summary(items, lambda system, user: bedrock.invoke(system, user, 1500, model, 0.5))
+            report["summary_model"] = model
+            break
+        except Exception as err:  # noqa: BLE001 - the stored summary stays if every writer fails
+            log.warning("summary with %s failed: %s", model, err)
+            last_err = err
+    else:
+        raise last_err
     day, dropped = f"{now:%A}, {now:%B} {now.day}", summary.pop("dropped")
     store.put_meta("summary", {**summary, "date": now.date().isoformat(), "day": day,
                                "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
