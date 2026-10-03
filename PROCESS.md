@@ -12,3 +12,6 @@ Agent: Claude Code (Claude Opus 5.5), working in the terminal with the AWS CLI, 
 - Python 3.14 on arm64 Lambda (the cheapest compute, and it matches the local Python).
 - The refresh schedule ships DISABLED, and it is only enabled after the cost estimate is approved.
 - Classification lives in a plain Python module with no AWS handler code, so it can be reused for the Alexa+ MCP server.
+- 17:00 Bedrock opened up. Created the Bedrock guardrail, wrote the Bedrock adapter (`handlers/bedrock.py`) that turns Nova Lite plus the output guardrail into a plain `invoke(system, user)` callable for `classify.py`.
+- 17:05 Wrote the news fetchers (FDA RSS, openFDA drugs and devices, medRxiv, PubMed E-utilities, commercial RSS), the free-to-read checker (robots.txt, status, JSON-LD `isAccessibleForFree`, wall markers; it reads at most 150 KB of HTML and keeps no text), the ingest and API handlers, and the three-tab front end. Proof: `proof/02-news-tab.png`.
+- 17:12 Reviewed the first live output, found and fixed future PubMed dates and invented funding rounds (see FRICTION_LOG).

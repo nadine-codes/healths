@@ -1,7 +1,87 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HealthSurface</title></head>
-<body><h1>HealthSurface</h1><p>Health news, funding and jobs, labeled by source type.</p>
-<p>This is a reading list, not medical advice.</p><p id="api">Checking API...</p>
-<script>fetch('/api/health').then(r=>r.json()).then(j=>{document.getElementById('api').textContent='API: '+(j.ok?'ok':'error')})</script>
-</body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HealthSurface</title>
+  <meta name="description" content="Health news, funding and jobs, labeled by source type.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <h1 class="brand" data-app-name>HealthSurface</h1>
+      <p class="tagline" data-tagline>Health news, funding and jobs, labeled by source type.</p>
+      <p class="disclaimer" data-disclaimer>This is a reading list, not medical advice.</p>
+      <nav class="tabs" role="tablist" aria-label="Sections">
+        <button role="tab" id="tab-news" aria-controls="panel-news" aria-selected="true">News</button>
+        <button role="tab" id="tab-funding" aria-controls="panel-funding" aria-selected="false">Funding</button>
+        <button role="tab" id="tab-jobs" aria-controls="panel-jobs" aria-selected="false">Jobs</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="panel-news" role="tabpanel" aria-labelledby="tab-news">
+      <div id="brief"></div>
+      <form class="filters" data-for="news">
+        <label>Sector <select name="sector"></select></label>
+        <label>Focus area <select name="focus"></select></label>
+        <label>Source type <select name="label"></select></label>
+        <label class="grow">Search <input name="q" type="search" placeholder="Headline or source"></label>
+      </form>
+      <p class="count" data-count="news"></p>
+      <ol class="list" id="news-list"></ol>
+    </section>
+
+    <section id="panel-funding" role="tabpanel" aria-labelledby="tab-funding" hidden>
+      <form class="filters" data-for="funding">
+        <label>Sector <select name="sector"></select></label>
+        <label>Focus area <select name="focus"></select></label>
+        <label>Round stage <select name="stage"></select></label>
+        <label>Amount <select name="amount">
+          <option value="">Any amount</option>
+          <option value="0-5000000">Under $5M</option>
+          <option value="5000000-25000000">$5M to $25M</option>
+          <option value="25000000-100000000">$25M to $100M</option>
+          <option value="100000000-">$100M and up</option>
+          <option value="unknown">Not disclosed</option>
+        </select></label>
+      </form>
+      <p class="count" data-count="funding"></p>
+      <p class="note">Sources: SEC Form D filings (amount, date and company as filed) and funding announcements found in the News feed. Round and investors are shown only when a source states them.</p>
+      <ol class="list" id="funding-list"></ol>
+    </section>
+
+    <section id="panel-jobs" role="tabpanel" aria-labelledby="tab-jobs" hidden>
+      <form class="filters" data-for="jobs">
+        <label>Function <select name="group"></select></label>
+        <label>Job type <select name="type"></select></label>
+        <label>Employment <select name="employment"></select></label>
+        <label>Sector <select name="sector"></select></label>
+        <label>Focus area <select name="focus"></select></label>
+        <label>Where <select name="remote">
+          <option value="">Remote or on-site</option>
+          <option value="remote">Remote</option>
+          <option value="onsite">On-site or hybrid</option>
+        </select></label>
+        <label class="grow">Search <input name="q" type="search" placeholder="Title, company or location"></label>
+      </form>
+      <p class="count" data-count="jobs"></p>
+      <ol class="list" id="jobs-list"></ol>
+      <aside class="contract">
+        <h2>Contract and freelance sources</h2>
+        <p>Link-outs only. We do not copy listings from these sites.</p>
+        <ul id="contract-links"></ul>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="wrap site-footer">
+    <p>Every item links to its original source. Summaries are written in our own words by an AI model and may contain mistakes. Source type describes what kind of source an item is, not how reliable it is.</p>
+    <p data-last-run></p>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

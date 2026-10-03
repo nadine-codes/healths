@@ -5,7 +5,7 @@ Description: HealthSurface - health news, funding and jobs, labeled by source ty
 Parameters:
   BedrockModelId:
     Type: String
-    Default: us.amazon.nova-micro-v1:0
+    Default: us.amazon.nova-lite-v1:0
   GuardrailId:
     Type: String
     Default: ""

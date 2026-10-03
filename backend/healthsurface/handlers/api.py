@@ -1,10 +1,37 @@
-"""Read-only HTTP API. Placeholder until the feeds land."""
+"""Read-only JSON API behind CloudFront at /api/*. Filtering happens in the browser."""
 import json
+
+from .. import config, taxonomy
+from . import store
+
+
+def _respond(body, status=200, max_age=300):
+    return {
+        "statusCode": status,
+        "headers": {"content-type": "application/json", "cache-control": f"public, max-age={max_age}"},
+        "body": json.dumps(body, separators=(",", ":")),
+    }
+
+
+def _sorted(rows, key="date"):
+    return sorted(rows, key=lambda r: r.get(key) or "", reverse=True)
 
 
 def handler(event, context):
-    return {
-        "statusCode": 200,
-        "headers": {"content-type": "application/json"},
-        "body": json.dumps({"ok": True, "path": event.get("rawPath")}),
-    }
+    path = (event.get("rawPath") or "").removeprefix("/api").strip("/")
+    if path == "health":
+        return _respond({"ok": True}, max_age=0)
+    if path == "meta":
+        last = store.get_meta("last_run") or {}
+        brief = store.get_meta("brief")
+        return _respond({"app": config.APP_NAME, "tagline": config.TAGLINE, "disclaimer": config.DISCLAIMER,
+                         "taxonomy": taxonomy.as_dict(), "last_run": last.get("started_at"),
+                         "sources": {k: {"name": v["name"], "label": v["label"]} for k, v in config.NEWS_SOURCES.items()},
+                         "brief": brief})
+    if path == "news":
+        return _respond({"items": _sorted(store.scan_all(store.news))[:600]})
+    if path == "funding":
+        return _respond({"items": _sorted(store.scan_all(store.funding))})
+    if path == "jobs":
+        return _respond({"items": _sorted(store.scan_all(store.jobs), "posted")})
+    return _respond({"error": "not found"}, status=404)
