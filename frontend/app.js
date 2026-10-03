@@ -354,6 +354,36 @@ function toggleListen(btn) {
   synth.speak(say);
 }
 
+// ---------- Ask what's new: answers only from stored items, with sources ----------
+function renderAsk() {
+  if (!state.meta?.ask_enabled) return;  // kill switch: the box stays hidden
+  $("#ask").hidden = false;
+  const form = $(".ask-form"), out = $(".ask-out"), input = $("#ask-q");
+  const show = (html, cls = "") => { out.className = `ask-out ${cls}`; out.innerHTML = html; };
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const question = input.value.trim();
+    if (!question) { show(`<p>Type a question first.</p>`, "is-note"); return; }
+    form.querySelector("button").disabled = true;
+    show(`<p>Looking through stored stories…</p>`, "is-loading");
+    let data;
+    try {
+      const res = await fetch("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question }) });
+      data = await res.json();
+    } catch {
+      data = { state: "error", answer: "Something went wrong. Please try again in a minute.", sources: [] };
+    }
+    form.querySelector("button").disabled = false;
+    const sources = (data.sources || []).map((s) => `<li>${kicker(s.label)} ${extLink(s.url, esc(s.title))} <span class="ask-src">${esc(s.source_name)}</span></li>`).join("");
+    const left = data.remaining != null && data.remaining <= 3 && data.state !== "limited" ? `<p class="ask-left">${data.remaining} question${data.remaining === 1 ? "" : "s"} left today</p>` : "";
+    show(`<p>${esc(data.answer)}</p>${sources ? `<p class="ask-sources-label">Sources</p><ul class="ask-sources">${sources}</ul>` : ""}${left}`, `is-${data.state}`);
+  });
+  document.addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-chip]");
+    if (chip) { input.value = chip.textContent; form.requestSubmit(); }
+  });
+}
+
 async function init() {
   try {
     state.meta = await getJSON("/api/meta");
@@ -385,6 +415,7 @@ async function init() {
     $("[data-last-run]").textContent = `Last refreshed ${new Date(state.meta.last_run).toLocaleString()}.`;
   }
   renderSummary();
+  renderAsk();
   $("[data-dateline]").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   document.addEventListener("click", (e) => {
