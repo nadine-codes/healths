@@ -6,6 +6,7 @@ Agent: Claude Code (Claude Opus 5.5), working in the terminal with the AWS CLI, 
 - 16:42 Read the brief, created the Linear project with one issue per build step, installed the AWS and SAM CLIs.
 - 16:46 Checked the AWS identity, listed Nova models and made a test call (blocked by account verification), created the $25 budget. Proof: `proof/00-identity-and-bedrock.txt`.
 - 16:50 Wrote the SAM template (S3 + CloudFront with OAC, HTTP API + Lambda behind `/api/*` on the same domain, DynamoDB, EventBridge Scheduler disabled by default) and deployed a hello-world. Proof: `proof/01-*`.
+- 22:18 to 22:37 Built the Ask chat from `chatbotfirst.md` on a branch: logic module and tests, Ask Lambda and `/api/ask` route, a separate Ask guardrail, rate limits, alarm and $50 budget, privacy page and breach plan. Deployed it switched off, ran the 10-question Nova Lite check (`proof/12-ask-10-question-check.txt`), showed the owner the cost estimate, and enabled it on the owner's OK. Checked live that no question text reaches the logs or the database.
 
 ## Key decisions
 - One CloudFront domain serves both the static site and `/api/*`, so there is no CORS and only one public URL.

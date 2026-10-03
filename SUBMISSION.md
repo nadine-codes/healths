@@ -23,6 +23,8 @@ One free reading list with three tabs that share the same Sector and Focus area 
 - **Funding:** 174 records from SEC Form D filings and NIH small business research grants. Amounts come from the filings themselves. A round or investor is shown only when a source states it.
 - **Jobs:** 1,460 open roles at 69 health companies, from verified company job boards (Greenhouse, Lever, Ashby) and Remote OK. Filter by function, 36 job types, employment type, country and remote.
 
+- **Ask what's new:** a question box that answers only from the stored stories, filings and job posts, lists its sources with their Source type, and refuses "should I" questions with a pointer to what recent stories report. Questions are never stored or logged.
+
 No accounts, no personal data, no medical advice. Every item links to its original source.
 
 **Try it in one minute:** open the News tab and set Source type to "Preprint" to see what has not been peer reviewed yet. On Funding, filter Sector by "Health Tech". On Jobs, pick Function "Clinical and Health" and Country "United States".
@@ -53,6 +55,7 @@ EventBridge Scheduler (twice a day, no retries)
                     -> DynamoDB (news, funding, jobs, run metadata)
 Visitor -> CloudFront -> S3 (static site, Origin Access Control)
                       -> /api/* -> API Gateway HTTP API -> read-only API Lambda
+                      -> POST /api/ask -> Ask Lambda -> rate limits (DynamoDB) -> Nova Lite + Ask guardrail
 ```
 - **One domain:** CloudFront serves the site and routes `/api/*` to API Gateway, so there is one public URL and no CORS. The API is cached for 5 minutes and throttled.
 - **Lambda** on Python 3.14 and arm64 (cheapest compute). **DynamoDB** on-demand. Everything is defined in one **AWS SAM** template.
