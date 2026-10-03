@@ -62,9 +62,8 @@ python3 -m venv .venv && .venv/bin/pip install boto3 pytest
 # 2. Run the tests
 cd backend && ../.venv/bin/python -m pytest -q && cd ..
 
-# 3. Create a Bedrock guardrail (once) and note its id
-aws bedrock create-guardrail --name healthsurface-guardrail ...   # see PROCESS.md for the policy used
-aws bedrock create-guardrail-version --guardrail-identifier <id>
+# 3. Create the Bedrock guardrail (once); prints its id
+./scripts/create_guardrail.sh
 
 # 4. Build and deploy (the schedule ships DISABLED unless you pass ScheduleState=ENABLED)
 sam build
