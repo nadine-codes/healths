@@ -19,7 +19,7 @@ That gap hurts most for the people moving into health tech: nurses, pharmacists 
 ## What HealthSurface does
 One free reading list with three tabs that share the same Sector and Focus area tags:
 
-- **News:** 169 stories from 8 sources (openFDA, medRxiv, PubMed, KFF Health News, The Conversation, CMS and CDC). Every story carries a **Source type** label: Press release, Preprint, Peer-reviewed study, Regulatory action or Reported news, with a tooltip saying what each one means. A daily "In focus" brief picks the top stories.
+- **News:** 160 stories from openFDA, medRxiv, PubMed, The Conversation, and the CMS and CDC newsrooms. Every story carries a **Source type** label: Press release, Preprint, Peer-reviewed study, Regulatory action or Reported news, with a tooltip saying what each one means. A daily "In focus" brief picks the top stories.
 - **Funding:** 174 records from SEC Form D filings and NIH small business research grants. Amounts come from the filings themselves. A round or investor is shown only when a source states it.
 - **Jobs:** 1,460 open roles at 69 health companies, from verified company job boards (Greenhouse, Lever, Ashby) and Remote OK. Filter by function, 36 job types, employment type, country and remote.
 
@@ -87,4 +87,4 @@ Claude Code (Claude Opus 5.5) built and shipped HealthSurface in one evening fro
 
 **Business model:** the reading list stays free. Paid alerts for investors and operators (new Form D filings and hiring surges by sector and focus area), and paid job postings for health companies.
 
-**Licensing before revenue:** KFF Health News is licensed CC BY-NC-ND, so it would be licensed or dropped before any paid tier. All other sources are public domain, open metadata APIs, or CC BY-ND with headline-and-link use.
+**Licensing before revenue:** every source is public domain, an open metadata API, or CC BY-ND with headline-and-link use (which permits commercial use), so a paid tier needs no new content licenses.

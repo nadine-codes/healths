@@ -25,9 +25,6 @@ NEWS_SOURCES = {
     "medrxiv": {"name": "medRxiv", "label": "Preprint", "free_to_read": True, "commercial": False},
     "pubmed": {"name": "PubMed", "label": "Peer-reviewed study", "free_to_read": True, "commercial": False},
     # Open-license newsrooms. We show only headline, link, date and our own summary, credited by name.
-    "kff_health_news": {"name": "KFF Health News", "label": "Reported news", "free_to_read": True, "commercial": False,
-                        "feed": "https://kffhealthnews.org/feed/",
-                        "terms": "CC BY-NC-ND 4.0; RSS offered for ingestion (kffhealthnews.org/syndication)"},
     "the_conversation": {"name": "The Conversation", "label": "Reported news", "free_to_read": True, "commercial": False,
                          "feed": "https://theconversation.com/us/health/articles.atom",
                          "terms": "CC BY-ND 4.0 (theconversation.com/us/republishing-guidelines)"},

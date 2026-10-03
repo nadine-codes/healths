@@ -261,7 +261,6 @@ FETCHERS = {
     "openfda_devices": fetch_openfda_devices,
     "medrxiv": fetch_medrxiv,
     "pubmed": fetch_pubmed,
-    "kff_health_news": lambda: fetch_rss("kff_health_news", config.NEWS_SOURCES["kff_health_news"]["feed"], limit=20),
     "the_conversation": lambda: fetch_atom("the_conversation", config.NEWS_SOURCES["the_conversation"]["feed"]),
     "cms_newsroom": fetch_cms_newsroom,
     "cdc_newsroom": fetch_cdc_newsroom,

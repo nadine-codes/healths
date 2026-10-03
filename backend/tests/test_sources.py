@@ -72,3 +72,10 @@ def test_cms_feed_link_unpacking(monkeypatch):
     [item] = news.fetch_cms_newsroom()
     assert item["url"] == "https://www.cms.gov/newsroom/press-releases/x"
     assert item["title"] == "CMS does a thing" and item["date"] == "2026-10-02" and item["label"] == "Press release"
+
+
+def test_kff_health_news_is_never_a_source():
+    # Owner decision (2026-10-02): KFF Health News is not used now or in the future.
+    from healthsurface import config
+    blob = repr(config.NEWS_SOURCES).lower() + repr(list(news.FETCHERS)).lower()
+    assert "kff" not in blob
