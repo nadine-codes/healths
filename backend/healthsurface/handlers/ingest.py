@@ -39,6 +39,9 @@ def ingest_news(report: dict) -> list[dict]:
 
     skipped, kept = [], []
     for item in batch:
+        if classify.is_blocked_story(item["title"], item.get("description")):
+            skipped.append({"url": item["url"], "reason": "blocked topic"})
+            continue
         meta = config.NEWS_SOURCES[item["source"]]
         if not meta["free_to_read"]:
             skipped.append({"url": item["url"], "reason": "source not free to read"})

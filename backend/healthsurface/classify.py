@@ -14,6 +14,7 @@ import json
 import re
 from typing import Callable, Optional
 
+from . import config
 from . import taxonomy as tx
 
 Invoke = Callable[[str, str], str]
@@ -27,6 +28,14 @@ SYSTEM_PROMPT = (
 
 BANNED_WORDS = re.compile(r"\b(proven|proves|breakthrough|miracle|cure[sd]?|high[- ]quality evidence)\b", re.I)
 AMOUNT_RE = re.compile(r"\$\s?\d+(?:\.\d+)?\s?(?:million|billion|[mb]n?)\b", re.I)
+
+
+_BLOCKED = re.compile(config.BLOCKED_STORY_TERMS, re.I)
+
+
+def is_blocked_story(*texts: str) -> bool:
+    """True when a story touches a topic we never pull (see config.BLOCKED_STORY_TERMS)."""
+    return any(_BLOCKED.search(t or "") for t in texts)
 
 
 # ---------- prompts ----------

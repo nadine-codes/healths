@@ -8,6 +8,10 @@ DISCLAIMER = "This is a reading list, not medical advice."
 CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "")
 USER_AGENT = f"{APP_NAME}/1.0 (+https://github.com/nadine-codes/healths) {CONTACT_EMAIL}".strip()
 
+# Stories whose headline or description match this are never pulled or shown.
+# Covers suicide, suicides, suicidal and suicidality.
+BLOCKED_STORY_TERMS = r"\bsuicid(e|es|al|ality)\b"
+
 # Per-run hard caps on Bedrock classification (cost guardrail).
 MAX_NEW_STORIES_PER_RUN = 100
 MAX_NEW_JOBS_PER_RUN = 200

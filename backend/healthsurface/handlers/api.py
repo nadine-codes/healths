@@ -1,7 +1,7 @@
 """Read-only JSON API behind CloudFront at /api/*. Filtering happens in the browser."""
 import json
 
-from .. import config, locations, taxonomy
+from .. import classify, config, locations, taxonomy
 from . import store
 
 
@@ -24,12 +24,15 @@ def handler(event, context):
     if path == "meta":
         last = store.get_meta("last_run") or {}
         brief = store.get_meta("brief")
+        if brief:
+            brief["bullets"] = [b for b in brief.get("bullets", []) if not classify.is_blocked_story(b.get("title"), b.get("text"))]
         return _respond({"app": config.APP_NAME, "tagline": config.TAGLINE, "disclaimer": config.DISCLAIMER,
                          "taxonomy": taxonomy.as_dict(), "last_run": last.get("started_at"),
                          "sources": {k: {"name": v["name"], "label": v["label"]} for k, v in config.NEWS_SOURCES.items()},
                          "brief": brief})
     if path == "news":
-        return _respond({"items": _sorted(store.scan_all(store.news))[:600]})
+        rows = [r for r in store.scan_all(store.news) if not classify.is_blocked_story(r.get("title"), r.get("summary"))]
+        return _respond({"items": _sorted(rows)[:600]})
     if path == "funding":
         return _respond({"items": _sorted(store.scan_all(store.funding))})
     if path == "jobs":

@@ -112,3 +112,15 @@ def test_brief_keeps_each_storys_own_label():
     bullets = classify.todays_brief(stories, lambda s, u: '{"picks": [0, 1, 2, 3, 4, 99, 0]}')
     assert [b["label"] for b in bullets] == ["Preprint", "Reported news", "Preprint", "Reported news", "Preprint"]
     assert bullets[0] == {"text": "Summary 0.", "label": "Preprint", "url": "https://x/0", "title": "t0"}
+
+
+@pytest.mark.parametrize("text,blocked", [
+    ("Study links social media use to suicide risk in teens", True),
+    ("Suicidal ideation screening in primary care", True),
+    ("SUICIDES rose in 2025", True),
+    ("FDA clears AI ECG device", False),
+    ("", False),
+])
+def test_blocked_story_terms(text, blocked):
+    assert classify.is_blocked_story(text) is blocked
+    assert classify.is_blocked_story("Neutral headline", text) is blocked  # description is checked too
