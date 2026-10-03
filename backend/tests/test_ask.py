@@ -97,15 +97,15 @@ class Counter:
         return self.counts[key]
 
 
-def test_eleventh_question_in_a_day_is_blocked():
-    incr = Counter()
-    states = [ask.check_visitor(incr, "v1", "20261003", f"m{n}")[0] for n in range(11)]
-    assert states[:10] == [None] * 10 and states[10] == "limited"
+def test_question_past_the_daily_limit_is_blocked():
+    incr, n = Counter(), ask.PER_VISITOR_DAY
+    states = [ask.check_visitor(incr, "v1", "20261003", f"m{i}")[0] for i in range(n + 1)]
+    assert n == 50 and states[:n] == [None] * n and states[n] == "limited"
 
 
-def test_three_per_minute():
-    incr = Counter()
-    assert [ask.check_visitor(incr, "v1", "d", "m")[0] for _ in range(4)] == [None, None, None, "limited"]
+def test_per_minute_limit():
+    incr, n = Counter(), ask.PER_VISITOR_MINUTE
+    assert n == 6 and [ask.check_visitor(incr, "v1", "d", "m")[0] for _ in range(n + 1)] == [None] * n + ["limited"]
 
 
 def test_global_answer_cap():

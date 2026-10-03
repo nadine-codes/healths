@@ -186,7 +186,7 @@ def answer(question: str, docs: list[dict], invoke: Optional[Invoke]) -> dict:
 
 # ---------- limits (checked before any model call) ----------
 
-PER_VISITOR_DAY, PER_VISITOR_MINUTE = 10, 3
+PER_VISITOR_DAY, PER_VISITOR_MINUTE = 50, 6  # generous so judges never hit them; the global caps bound cost
 GLOBAL_REQUESTS_DAY, GLOBAL_ANSWERS_DAY = 1000, 300
 
 
