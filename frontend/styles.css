@@ -123,7 +123,33 @@ button { font: inherit; }
 #focus { margin: 36px 0 0; }
 #news-list-more:empty { display: none; }
 .summary-band { margin-bottom: 0; }
-.summary-card { justify-content: flex-start; min-height: 0; }
+.summary-card { justify-content: flex-start; min-height: 0; isolation: isolate; background: var(--band-2); }
+/* Two soft glows (green, blue) that drift behind the text; z-index -1 stays inside the isolated card. */
+.summary-card::before, .summary-card::after {
+  content: ""; position: absolute; z-index: -1; border-radius: 50%; pointer-events: none; will-change: transform;
+}
+.summary-card::before {
+  width: 85%; aspect-ratio: 1; top: -35%; right: -20%;
+  background: radial-gradient(closest-side, rgba(11, 110, 95, 0.6), transparent);
+  animation: orb-green 10s ease-in-out infinite alternate;
+}
+.summary-card::after {
+  width: 75%; aspect-ratio: 1; bottom: -40%; left: -20%;
+  background: radial-gradient(closest-side, rgba(31, 79, 191, 0.45), transparent);
+  animation: orb-blue 13s ease-in-out infinite alternate;
+}
+@keyframes orb-green {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(-35%, 30%) scale(1.15); }
+  66%  { transform: translate(-60%, -5%) scale(0.9); }
+  100% { transform: translate(-20%, 45%) scale(1.05); }
+}
+@keyframes orb-blue {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(40%, -30%) scale(1.1); }
+  66%  { transform: translate(75%, 5%) scale(0.95); }
+  100% { transform: translate(25%, -50%) scale(1.15); }
+}
 .summary-eyebrow { margin: 0; font: 700 0.72rem/1 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--band-muted); }
 .summary-card h3 { font-size: clamp(1.5rem, 2.6vw, 2.1rem); margin: 12px 0 16px; }
 .summary-text p { margin: 0 0 14px; font-size: 1.1rem; line-height: 1.6; color: #dfe3e1; max-width: 64ch; }
@@ -255,5 +281,6 @@ li:has(> .more) { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .feature.playing .progress span { animation: none; }
+  .summary-card::before, .summary-card::after { animation: none; }
 }
 .site-footer a { color: var(--band-text); }
