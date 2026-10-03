@@ -91,6 +91,18 @@ To refresh the verified job boards: `python3 scripts/verify_boards.py`.
 - Nova Lite costs about $0.0001 per story. A first full run cost about $0.01 in model tokens plus the guardrail checks. Expected total through Oct 23 is well under $5.
 - The API is cached at CloudFront for 5 minutes and throttled at 20 requests per second (burst 50).
 
+## Ask chat (built from chatbotfirst.md; off until the owner enables it)
+
+An "Ask what's new" box on the News tab answers questions only from stored stories, funding records and job posts, and lists its sources with their Source type. `POST /api/ask` runs in its own Lambda (`handlers/ask_api.py`); the logic lives in `healthsurface/ask.py` with no AWS code.
+
+- **Order of checks:** input check, rate limits (1 request per second with burst 3 on the route; 3 per minute and 10 per day per visitor; 1,000 requests and 300 model-backed answers per day overall), rule check for advice and personal questions (refusal with cited stories, no model call), 24-hour answer cache, Ask guardrail on the question, retrieval (up to 8 items by keyword, Sector and Focus area), one Amazon Nova Lite call (`amazon.nova-lite-v1:0`, in-region, 300 output tokens), guardrail on the answer, then only cited ids from the retrieved set are kept.
+- **Kill switch:** `aws dynamodb put-item --table-name <MetaTable> --item '{"id":{"S":"ask_settings"},"enabled":{"BOOL":false}}'` turns it off without a deploy; the page hides the box. Deploy default: `AskEnabled=false`.
+- **Guardrail:** `scripts/create_ask_guardrail.sh` (denied topics: medical advice, diagnosis; prompt-attack filter; personal details masked in questions only, since answers name cities from job posts).
+- **Deviations from the spec:** Lambda reserved concurrency is not possible on this account (concurrency limit 10, all of it must stay unreserved), so the route throttle caps concurrency; HTTP APIs have no usage plans, so the 1,000-a-day quota is a DynamoDB counter. Alarm: more than 500 Ask invocations in an hour emails the owner. A second AWS Budget alerts at $50.
+- **Privacy:** no question text is stored or logged (logs carry the outcome state only; the cache key and the rate-limit key are hashes; the rate-limit key is a salted, daily IP hash that expires within two days). Bedrock model invocation logging is off. Amazon states that Bedrock does not store or log prompts and completions and does not use them to train models; Ask uses the in-region model ID so requests stay in us-east-1. See `frontend/privacy.html` and `docs/BREACH_RESPONSE.md`.
+- **Legal review: not done yet.** The likely exposure is the FTC Act, the FTC Health Breach Notification Rule, state consumer health data laws and CCPA/CPRA, not HIPAA. The design collects as little as possible and shares nothing.
+- **Checks:** `backend/tests/test_ask.py`; 10-question Nova Lite check in `proof/12-ask-10-question-check.txt`.
+
 ## Sources
 
 | Source | Used for | Label | Terms status |

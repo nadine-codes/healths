@@ -1,5 +1,6 @@
 """Read-only JSON API behind CloudFront at /api/*. Filtering happens in the browser."""
 import json
+import os
 
 from .. import classify, config, locations, taxonomy
 from . import store
@@ -15,6 +16,12 @@ def _respond(body, status=200, max_age=300):
 
 def _sorted(rows, key="date"):
     return sorted(rows, key=lambda r: r.get(key) or "", reverse=True)
+
+
+def ask_enabled() -> bool:
+    """Same kill switch the Ask Lambda reads: the meta item ask_settings, else ASK_ENABLED."""
+    setting = (store.get_meta("ask_settings") or {}).get("enabled")
+    return setting if setting is not None else os.environ.get("ASK_ENABLED", "false") == "true"
 
 
 def briefing(summary: dict | None) -> list[dict]:
@@ -40,7 +47,7 @@ def handler(event, context):
         return _respond({"app": config.APP_NAME, "tagline": config.TAGLINE, "disclaimer": config.DISCLAIMER,
                          "taxonomy": taxonomy.as_dict(), "last_run": last.get("started_at"),
                          "sources": {k: {"name": v["name"], "label": v["label"]} for k, v in config.NEWS_SOURCES.items()},
-                         "brief": brief, "summary": store.get_meta("summary")})
+                         "brief": brief, "summary": store.get_meta("summary"), "ask_enabled": ask_enabled()})
     if path == "briefing":
         return _respond(briefing(store.get_meta("summary")))
     if path == "news":

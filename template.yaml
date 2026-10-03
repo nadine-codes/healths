@@ -20,6 +20,18 @@ Parameters:
     Type: String
     Default: DISABLED
     AllowedValues: [ENABLED, DISABLED]
+  AskGuardrailId:
+    Type: String
+    Default: ""
+    Description: Guardrail for the Ask chat (scripts/create_ask_guardrail.sh).
+  AskGuardrailVersion:
+    Type: String
+    Default: "1"
+  AskEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Default for the Ask kill switch. The meta item ask_settings overrides it without a deploy.
 
 Globals:
   Function:
@@ -69,6 +81,86 @@ Resources:
       DefaultRouteSettings:
         ThrottlingBurstLimit: 50
         ThrottlingRateLimit: 20
+      RouteSettings:
+        "POST /api/ask":
+          ThrottlingBurstLimit: 3
+          ThrottlingRateLimit: 1
+
+  # Ask chat: rate-limit counters and the 24-hour answer cache. Items expire on their own (TTL).
+  # Holds hashes and counts only, never question text.
+  AskTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{ AttributeName: id, AttributeType: S }]
+      KeySchema: [{ AttributeName: id, KeyType: HASH }]
+      TimeToLiveSpecification: { AttributeName: expires, Enabled: true }
+
+  AskFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: healthsurface.handlers.ask_api.handler
+      Timeout: 20
+      # Reserved concurrency of 2 is not possible on this account (limit 10, all must stay unreserved);
+      # the route throttle of 1 per second, burst 3, caps it instead.
+      Environment:
+        Variables:
+          ASK_TABLE: !Ref AskTable
+          ASK_ENABLED: !Ref AskEnabled
+          GUARDRAIL_ID: !Ref AskGuardrailId
+          GUARDRAIL_VERSION: !Ref AskGuardrailVersion
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref NewsTable }
+        - DynamoDBReadPolicy: { TableName: !Ref FundingTable }
+        - DynamoDBReadPolicy: { TableName: !Ref JobsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref MetaTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref AskTable }
+        - Statement:
+            - Effect: Allow
+              Action: [bedrock:InvokeModel, bedrock:ApplyGuardrail]
+              Resource: "*"
+      Events:
+        Ask:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/ask
+            Method: POST
+
+  AskAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref ContactEmail
+
+  AskInvocationsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Ask chat invoked more than 500 times in an hour.
+      Namespace: AWS/Lambda
+      MetricName: Invocations
+      Dimensions: [{ Name: FunctionName, Value: !Ref AskFunction }]
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 500
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AskAlarmTopic]
+
+  SecondBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub ${AWS::StackName}-50
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit: { Amount: 50, Unit: USD }
+      NotificationsWithSubscribers:
+        - Notification: { NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 100, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref ContactEmail }]
 
   ApiFunction:
     Type: AWS::Serverless::Function
@@ -77,6 +169,9 @@ Resources:
       Handler: healthsurface.handlers.api.handler
       MemorySize: 256
       Timeout: 10
+      Environment:
+        Variables:
+          ASK_ENABLED: !Ref AskEnabled
       Policies:
         - DynamoDBReadPolicy: { TableName: !Ref NewsTable }
         - DynamoDBReadPolicy: { TableName: !Ref FundingTable }
@@ -187,7 +282,8 @@ Resources:
           - PathPattern: /api/*
             TargetOriginId: api
             ViewerProtocolPolicy: redirect-to-https
-            AllowedMethods: [GET, HEAD, OPTIONS]
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]  # POST for /api/ask; never cached
+            CachedMethods: [GET, HEAD]
             CachePolicyId: !Ref ApiCachePolicy
             OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # Managed-AllViewerExceptHostHeader
             Compress: true
