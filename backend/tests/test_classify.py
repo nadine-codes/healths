@@ -280,3 +280,19 @@ def test_spoken_summary_has_intro_and_disclaimer():
 
 def test_sector_guide_covers_every_sector():
     assert list(classify.SECTOR_GUIDE) == tx.SECTORS
+
+
+@pytest.mark.parametrize("title,job_type", [
+    ("Fulfillment Pharmacist - Boynton Beach, FL", "Clinical Product Specialist"),  # "fuLLMent" is not an LLM job
+    ("Senior Battery Cell Engineer", "Other"),
+    ("Technical Recruiting Lead", "People and Recruiting"),
+    ("Senior Analyst, SIU Investigator", "Legal and Compliance"),
+    ("Engineering Program Manager, New Product Development", "Project or Program Manager"),
+])
+def test_rule_job_classifier_edge_cases(title, job_type):
+    assert classify.rule_classify_job({"title": title})["job_type"] == job_type
+
+
+def test_job_prompt_says_seniority_does_not_decide_the_type():
+    prompt = classify.job_prompt({"title": "VP of Engineering", "company": "x"})
+    assert "not by seniority" in prompt and "Clinical Product Specialist: licensed clinicians" in prompt

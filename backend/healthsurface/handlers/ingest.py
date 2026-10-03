@@ -171,8 +171,8 @@ def ingest_jobs(report: dict) -> None:
     fetched = list({j["id"]: j for j in fetched}.values())
     new = [j for j in fetched if j["id"] not in existing]
 
-    def needs_retry(row):  # keyword-only rows, and "Other" from the first model prompt version
-        return row and (row.get("classifier") == "rules" or (row.get("classifier") == "model" and row.get("job_type") == "Other"))
+    def needs_retry(row):  # keyword-only rows and rows tagged by an older job prompt
+        return row and row.get("classifier") != classify.JOB_CLASSIFIER
 
     retry = [j for j in fetched if needs_retry(existing.get(j["id"]))]
 

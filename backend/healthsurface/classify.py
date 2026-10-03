@@ -71,16 +71,41 @@ def story_prompt(item: dict) -> str:
     )
 
 
+JOB_GUIDE = (
+    "Classify by what the person does every day, not by seniority. Directors, VPs and heads belong to the "
+    "function they lead (Director of Machine Learning is AI Engineer, Director of Product is Product Manager, "
+    "VP of Sales is Sales). Executive and Admin is only for C-suite general management, chiefs of staff, and "
+    "executive or administrative assistants. Clinical types are only for licensed clinicians and roles that "
+    "practice or directly support clinical care (nurses, physicians, therapists, pharmacists, coaches who "
+    "work with patients). Talent, benefits and HR operations are People and Recruiting. Payroll is Finance and "
+    "Accounting. Fraud, risk, compliance and privacy are Legal and Compliance. Account Manager owns existing "
+    "accounts; Sales wins new ones, including territory managers and RFP or proposal roles. Platform, cloud, "
+    "IT and infrastructure engineers are DevOps and Security. Hardware, manufacturing, facilities, lab and "
+    "materials roles that fit nothing on the list are Other.\n"
+    "Types that are easy to confuse:\n"
+    "- Clinical Product Specialist: licensed clinicians who see or treat patients, such as nurse practitioners, "
+    "nurses, physicians, pharmacists, therapists, counselors, dietitians and patient-facing health coaches.\n"
+    "- Clinical Operations: running clinical trials or clinical programs without treating patients.\n"
+    "- Medical Affairs and Science: scientists, medical science liaisons, health economics and outcomes research.\n"
+    "- Product Marketing: positioning and launching products. Product Manager: deciding what to build.\n"
+    "- Marketing Designer: designs for marketing and growth. UX/UI Product Designer: designs the product.\n"
+    "- Software Engineer: general software, including automation and engineering leadership. "
+    "AI Engineer: machine learning and AI only."
+)
+
+
+JOB_CLASSIFIER = "model3"  # bump with JOB_GUIDE changes; stored jobs from older versions are retagged
+
+
 def job_prompt(job: dict) -> str:
     return (
+        f"{JOB_GUIDE}\n\n"
         f"Job types: {json.dumps(tx.JOB_TYPES)}\n"
         f"Employment types: {json.dumps(tx.EMPLOYMENT_TYPES)}\n"
         f"Seniority: {json.dumps(tx.SENIORITY)}\n\n"
         f"Title: {job.get('title')}\nCompany: {job.get('company')}\n"
         f"Posting excerpt: {(job.get('text') or '')[:800]}\n\n"
-        "Return JSON with keys: job_type, employment_type, seniority. Copy each value exactly from its "
-        "list. Clinicians (nurses, physicians, therapists, pharmacists) are Clinical Product Specialist "
-        "unless a more specific clinical type fits; recruiters are People and Recruiting."
+        "Return JSON with keys: job_type, employment_type, seniority. Copy each value exactly from its list."
     )
 
 
@@ -148,8 +173,8 @@ def validate_funding(raw: dict) -> Optional[dict]:
 
 def validate_job(raw: dict, title: str = "") -> dict:
     job_type = raw.get("job_type")
-    if job_type not in tx.JOB_TYPES or job_type == "Other":
-        # Off-list or "Other" answers defer to the keyword rules, which map to the exact list.
+    if job_type not in tx.JOB_TYPES:
+        # Off-list answers defer to the keyword rules, which map to the exact list.
         job_type = rule_classify_job({"title": title})["job_type"]
     emp = raw.get("employment_type")
     if emp not in tx.EMPLOYMENT_TYPES:
@@ -235,18 +260,23 @@ def rule_classify_story(item: dict) -> dict:
 
 
 JOB_TYPE_KEYWORDS = [
+    ("Other", r"battery|hardware|mechanical|electrical|manufacturing|facilities|technician|silicon|photonics|materials"),
+    ("Regulatory and Quality", r"regulatory|quality assurance specialist|\bqms\b"),
+    ("Project or Program Manager", r"program manager|project manager|\btpm\b"),
+    ("Operations and Strategy", r"revenue cycle"),
     ("UX Researcher", r"ux research|user research"),
-    ("UX/UI Product Designer", r"product design|ux|ui designer|interaction design"),
+    ("UX/UI Product Designer", r"product design|\bux\b|ui designer|interaction design|design technologist"),
     ("Brand Designer", r"brand design"),
     ("Graphic Designer", r"graphic design|visual design"),
-    ("Marketing Designer", r"marketing design|creative design"),
-    ("AI Engineer", r"machine learning|\bml\b|\bai\b|applied scientist|llm"),
-    ("Data and Analytics", r"data scien|data engineer|analytics|analyst|biostatistic"),
+    ("Marketing Designer", r"marketing design|creative design|growth/digital designer|digital designer"),
+    ("AI Engineer", r"machine learning|\bml\b|\bai\b|applied scientist|\bllm"),
+    ("Legal and Compliance", r"\bsiu\b|fraud|investigator|governance|risk|compliance|privacy|legal|counsel|attorney"),
+    ("Data and Analytics", r"data scien|data engineer|data specialist|analytics|analyst|biostatistic"),
     ("DevOps and Security", r"devops|site reliability|\bsre\b|security|infrastructure|platform engineer|cloud"),
     ("QA and Test", r"\bqa\b|quality assurance engineer|test engineer|sdet"),
     ("UI Engineer", r"front[- ]?end|ui engineer|ios|android|mobile engineer"),
     ("Software Engineer", r"software|engineer|developer|backend|full[- ]?stack"),
-    ("Product Manager", r"product manager|product lead|product owner|head of product"),
+    ("Product Manager", r"product manager|product lead|product owner|head of product|director, [\w ]*product$"),
     ("Project or Program Manager", r"program manager|project manager|tpm"),
     ("Product Marketing", r"product marketing"),
     ("Growth and Lifecycle Marketing", r"growth|lifecycle|performance marketing|demand gen|marketing"),
@@ -254,20 +284,20 @@ JOB_TYPE_KEYWORDS = [
     ("Social Media and Community", r"social media|community"),
     ("PR and Communications", r"communications|\bpr\b|public relations"),
     ("Solutions and Sales Engineering", r"solutions engineer|sales engineer|solutions architect|solutions consultant"),
-    ("Account Manager", r"accounts? manager|account executive|key account"),
-    ("Customer Success Manager", r"customer success"),
+    ("Account Manager", r"accounts? (manager|director)|account executive|key account"),
+    ("Customer Success Manager", r"customer success|patient success|member success"),
     ("Implementation and Onboarding", r"implementation|onboarding|deployment"),
     ("Customer Support", r"support|customer service|member services|care coordinator"),
     ("Partnerships and Business Development", r"partnership|business development|\bbd\b|alliances"),
-    ("Sales", r"sales|business development representative|\bsdr\b|\bbdr\b"),
+    ("Sales", r"sales|business development representative|\bsdr\b|\bbdr\b|territory manager|proposal"),
     ("Medical Writing and Content", r"medical writ"),
     ("Medical Affairs and Science", r"medical affairs|medical science|msl|scientist|research associate|clinical scien"),
     ("Regulatory and Quality", r"regulatory|quality|compliance specialist|\bqms\b"),
     ("Health Informatics", r"informatic"),
     ("Clinical Operations", r"clinical operations|clinical trial|cra\b|study manager"),
-    ("Clinical Product Specialist", r"nurse|\brn\b|physician|clinician|therapist|pharmacist|dietitian|psychiatr|psycholog|\bmd\b|\bdo\b|\bnp\b|clinical|coach|counselor|provider"),
-    ("Finance and Accounting", r"financ|accountant|accounting|controller|fp&a|tax|equity"),
-    ("People and Recruiting", r"recruit|talent|people|\bhr\b|human resources|learning|training|payroll"),
+    ("Clinical Product Specialist", r"nurse|\brn\b|physician|clinician|therapist|pharmacist|dietitian|psychiatr|psycholog|\bmd\b|\bdo\b|\bnp\b|\blcsw\b|\blpc\b|\bcnm\b|medical director|clinical|coach|counselor|provider"),
+    ("Finance and Accounting", r"financ|accountant|accounting|controller|fp&a|tax|equity|payroll"),
+    ("People and Recruiting", r"recruit|talent|people|\bhr\b|human resources|learning|training|benefits"),
     ("Legal and Compliance", r"legal|counsel|attorney|compliance|privacy"),
     ("Executive and Admin", r"chief|\bceo\b|\bcfo\b|\bcto\b|vp\b|vice president|executive assistant|office manager|admin"),
     ("Operations and Strategy", r"operations|strategy|bizops|chief of staff|revenue cycle"),
@@ -345,7 +375,7 @@ def classify_story(item: dict, invoke: Optional[Invoke] = None) -> tuple[dict, s
 def classify_job(job: dict, invoke: Optional[Invoke] = None) -> tuple[dict, str]:
     if invoke:
         try:
-            return validate_job(parse_json(invoke(SYSTEM_PROMPT, job_prompt(job))), job.get("title", "")), "model2"
+            return validate_job(parse_json(invoke(SYSTEM_PROMPT, job_prompt(job))), job.get("title", "")), JOB_CLASSIFIER
         except Exception:  # noqa: BLE001
             pass
     return rule_classify_job(job), "rules"
