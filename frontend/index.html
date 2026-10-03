@@ -6,6 +6,9 @@
   <title>HealthSurface</title>
   <meta name="description" content="Health news, funding and jobs, labeled by source type.">
   <meta name="color-scheme" content="light">
+  <meta property="og:title" content="HealthSurface">
+  <meta property="og:description" content="Health news, funding and jobs, labeled by source type. Built on AWS for the Zero to Shipped hackathon.">
+  <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&display=swap">
@@ -32,6 +35,13 @@
       </div>
     </nav>
   </header>
+
+  <noscript>
+    <div class="wrap">
+      <p>HealthSurface needs JavaScript to show its cards. It is a free, read-only reading list for people who follow health and health tech. News stories from openFDA, medRxiv, PubMed, KFF Health News, The Conversation and the CMS and CDC newsrooms each carry a Source type label (Press release, Preprint, Peer-reviewed study, Regulatory action, Reported news). The Funding tab lists SEC Form D filings, NIH small business grants and funding announcements in the news. The Jobs tab lists open roles from verified company job boards and Remote OK. Every item links to its original source.</p>
+      <p>Built on AWS (CloudFront, S3, API Gateway, Lambda, DynamoDB, EventBridge Scheduler, Amazon Bedrock with Nova Lite and Guardrails) with Claude Code as the coding agent. The same data is available as JSON at <a href="/api/news">/api/news</a>, <a href="/api/funding">/api/funding</a>, <a href="/api/jobs">/api/jobs</a> and <a href="/api/meta">/api/meta</a>. Source code: <a href="https://github.com/nadine-codes/healths">github.com/nadine-codes/healths</a>.</p>
+    </div>
+  </noscript>
 
   <main>
     <section id="panel-news" role="tabpanel" aria-labelledby="tab-news">
