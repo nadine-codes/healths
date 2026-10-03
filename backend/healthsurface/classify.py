@@ -346,3 +346,164 @@ def todays_brief(stories: list[dict], invoke: Invoke) -> list[dict]:
     if len(bullets) < 5:
         raise ValueError("brief too short")
     return bullets
+
+
+# ---------- daily summary (read on the site and aloud by voice assistants) ----------
+
+SUMMARY_SYSTEM = (
+    "You write the HealthSurface daily summary: a short spoken roundup of health news that is shown "
+    "on the site and read aloud by a voice assistant. You sound like a friendly, sharp health reporter "
+    "talking to one listener over coffee: warm, plain words, short sentences, active voice, a little "
+    "personality, never hype. You never give medical advice, dosing, or treatment recommendations. "
+    "Every fact you write comes from the numbered item it is attached to. Reply with JSON only."
+)
+
+SUMMARY_MIN_WORDS, SUMMARY_MAX_WORDS = 120, 380
+SUMMARY_MAX_CHARS = 3600  # the spoken version, with intro and sign-off, stays under Alexa's 4,500
+SUMMARY_MIN_ITEMS, SUMMARY_MAX_ITEMS = 4, 10
+
+# Capitalized words a sentence may use without them appearing in its item.
+SPOKEN_ALLOWED = {
+    "a", "an", "and", "the", "this", "that", "these", "it", "its", "in", "on", "for", "from", "with", "over", "now",
+    "on", "one", "two", "three", "meanwhile", "also", "and", "but", "finally", "first", "next", "elsewhere",
+    "fda", "cdc", "cms", "nih", "sec", "pubmed", "medrxiv", "us", "u.s.", "america", "american", "americans",
+    "food", "drug", "administration", "centers", "disease", "control", "prevention", "medicare", "medicaid",
+    "services", "national", "institutes", "health", "securities", "exchange", "commission", "form", "d",
+    "today", "today's", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+}
+_STOP = {"about", "after", "their", "there", "these", "those", "which", "where", "while", "would", "could", "should",
+         "being", "other", "people", "study", "studies", "review", "health", "found", "shows", "new", "says"}
+
+
+def summary_prompt(items: list[dict]) -> str:
+    lines = []
+    for i, it in enumerate(items):
+        detail = f" Our summary: {it['summary']}" if it.get("summary") else ""
+        label = "Preprint, not yet peer reviewed" if it["label"] == "Preprint" else it["label"]
+        lines.append(f"[{i}] {label} | {it['source_name']} | {it['title']}.{detail}")
+    return (
+        "Write today's summary from the items below.\n"
+        f"- Pick the {SUMMARY_MIN_ITEMS + 2} to {SUMMARY_MAX_ITEMS - 2} most interesting items for a general listener. Skip dry "
+        "or minor ones. Favor discoveries, new treatments and approvals, big public health moves, and big money.\n"
+        "- 2 or 3 paragraphs, 200 to 300 words in total. First: research and discoveries. Second: treatments, "
+        "approvals and public health or policy moves. Third, its own paragraph, if worth it: the biggest funding.\n"
+        "- Every sentence is attached to one item number and only says what that item says. Explain why it "
+        "matters in everyday words. Vary how you introduce items; do not start every sentence the same way.\n"
+        "- Report, don't judge: say what a study looked at or reported, never that something works, is safe, or "
+        "what the evidence shows. Add no rankings like largest or first, and no claims about markets or investors, "
+        "unless the item says so. An SEC Form D filing reports money raised; it is not an announcement.\n"
+        "- You may add a few short linking sentences with \"item\": null, like \"Now, the money.\" They carry no facts, names or numbers.\n"
+        "- Say where an item comes from in words a listener follows, like \"a new peer-reviewed study\" or "
+        "\"the FDA\". Always say a preprint has not been peer reviewed yet.\n"
+        "- Write for the ear: no URLs, lists, markdown, parentheses or em dashes. Use only names and numbers "
+        "that appear in the item. Never use the words proven, breakthrough, miracle or cure.\n"
+        "- Do not greet the listener or sign off; that is added for you.\n"
+        "- Style only, these facts are made up: \"Your gut may have a say in how you sleep. A new peer-reviewed study "
+        "followed 400 adults and found the ones with more varied gut bacteria slept longer. It's early, but it's "
+        "another hint that the gut and brain talk more than we thought.\" Notice: a hook first, then the finding in "
+        "plain words, then why it matters. Do not copy the item summaries word for word.\n"
+        'Return JSON: {"paragraphs": [[{"item": 4, "text": "..."}, {"item": null, "text": "..."}], [...]]}\n\n'
+        + "\n".join(lines)
+    )
+
+
+def _words(text: str) -> int:
+    return len(text.split())
+
+
+def _clean(text) -> str:
+    return " ".join(str(text or "").split()).replace("—", ", ").replace("–", "-")
+
+
+def sentence_grounded(text: str, item: dict | None) -> bool:
+    """True when every name and number in a sentence appears in its item (or it is a bare linking line)."""
+    if BANNED_WORDS.search(text) or is_blocked_story(text) or re.search(r"https?://|www\.|[*#\[\]{}()<>]", text):
+        return False
+    source = "" if item is None else f"{item['title']} {item.get('summary', '')} {item['source_name']} {item['label']}".lower()
+    if item is None:
+        return _words(text) <= 14 and not re.search(r"\d", text) and \
+            all(w.lower() in SPOKEN_ALLOWED for w in re.findall(r"(?<![.!?:]\s)(?<=\s)[A-Z][\w'-]*", text))
+    if item["label"] == "Preprint" and re.search(r"peer[- ]review", text, re.I) and \
+            not re.search(r"not (?:yet |been )*peer[- ]review|hasn't been peer[- ]review", text, re.I):
+        return False  # a preprint is never called peer reviewed
+    for num in re.findall(r"\d[\d,.]*\d|\d", text):
+        if num.strip(".,") not in source.replace(",", "") and num.replace(",", "").strip(".") not in source.replace(",", ""):
+            return False
+    for name in re.findall(r"(?<![.!?:]\s)(?<=\s)[A-Z][\w'-]*", text):  # names, not sentence starts
+        word = name.lower().removesuffix("'s")
+        if word not in SPOKEN_ALLOWED and word not in source:
+            return False
+    content = {w for w in re.findall(r"[a-z]{5,}", text.lower()) if w not in _STOP}
+    return any(w in source for w in content)
+
+
+_PLAIN_STARTS = {"a", "an", "the", "this", "these", "researchers", "scientists", "investigators", "new", "one",
+                 "two", "study", "studies"}
+_PREPRINT_LEADS = ("In a preprint that hasn't been peer reviewed yet, ", "In another preprint, also not yet peer reviewed, ",
+                   "From a preprint still awaiting peer review, ", "In one more early preprint, not yet peer reviewed, ")
+
+
+def flag_preprint(text: str, nth: int = 0) -> str:
+    """Prefix a preprint sentence. The first lead-in is used once; the rest rotate, so no two in a row match."""
+    first = text.split(" ", 1)[0]
+    lead = first.lower() + text[len(first):] if first.lower() in _PLAIN_STARTS else text
+    return _PREPRINT_LEADS[nth if nth == 0 else 1 + (nth - 1) % (len(_PREPRINT_LEADS) - 1)] + lead
+
+
+def validate_summary(raw: dict, items: list[dict]) -> dict:
+    """Code checks on the model's summary. Ungrounded sentences are dropped; raises ValueError if too little is left."""
+    drafts, dropped = [], 0
+    for para in raw.get("paragraphs") or []:
+        kept = []
+        for sent in para if isinstance(para, list) else []:
+            if not isinstance(sent, dict):
+                dropped += 1
+                continue
+            idx, text = sent.get("item"), _clean(sent.get("text"))
+            item = items[idx] if isinstance(idx, int) and 0 <= idx < len(items) else None
+            if not text or (idx is not None and item is None) or not sentence_grounded(text, item):
+                dropped += 1
+                continue
+            kept.append((idx, text))
+        drafts.append(kept)
+    # A preprint is always called out as not yet peer reviewed; code adds it when the model did not.
+    flagged = {i for para in drafts for i, t in para if re.search(r"preprint|not (?:yet |been )*peer[- ]review", t, re.I)}
+    paragraphs, cited = [], []
+    for para in drafts:
+        kept = []
+        for i, t in para:
+            if i is not None and items[i]["label"] == "Preprint" and i not in flagged:
+                t = flag_preprint(t, sum(items[j]["label"] == "Preprint" for j in flagged))
+                flagged.add(i)
+            kept.append((i, t))
+        if any(i is not None for i, _ in kept):  # a paragraph of linking lines alone is dropped
+            paragraphs.append(" ".join(t for _, t in kept))
+            cited += [i for i in dict.fromkeys(i for i, _ in kept) if i is not None and i not in cited]
+    text = " ".join(paragraphs)
+    if not 2 <= len(paragraphs) <= 3:
+        raise ValueError(f"summary needs 2 or 3 paragraphs ({dropped} sentences dropped as ungrounded)")
+    if not SUMMARY_MIN_WORDS <= _words(text) <= SUMMARY_MAX_WORDS or len(text) > SUMMARY_MAX_CHARS:
+        raise ValueError(f"summary length out of range ({_words(text)} words, {dropped} sentences dropped as ungrounded)")
+    if not SUMMARY_MIN_ITEMS <= len(cited) <= SUMMARY_MAX_ITEMS:
+        raise ValueError(f"summary must cover {SUMMARY_MIN_ITEMS} to {SUMMARY_MAX_ITEMS} items, not {len(cited)}")
+    sources = [{k: items[i][k] for k in ("title", "url", "label", "source_name") if items[i].get(k)} for i in cited]
+    return {"paragraphs": paragraphs, "sources": sources, "dropped": dropped}
+
+
+def todays_summary(items: list[dict], invoke: Invoke, attempts: int = 2) -> dict:
+    """A few paragraphs in HealthSurface's voice. Links come from the cited items, never from the model."""
+    prompt, last_err = summary_prompt(items), ValueError("no attempts")
+    for _ in range(attempts):
+        try:
+            return validate_summary(parse_json(invoke(SUMMARY_SYSTEM, prompt)), items)
+        except Exception as err:  # noqa: BLE001 - a bad reply is retried once, then the old summary stays
+            last_err = err
+            prompt = summary_prompt(items) + f"\n\nYour last reply was rejected ({err}). Fix that and reply again."
+    raise last_err
+
+
+def spoken_summary(summary: dict, day: str) -> str:
+    """The text a voice assistant reads: fixed intro and sign-off around the model's paragraphs."""
+    return (f"Here's your {config.APP_NAME} summary for {day}. " + " ".join(summary["paragraphs"]) +
+            f" That's the summary. You'll find links to every source on {config.APP_NAME}. "
+            "Remember, it's a reading list, not medical advice.")

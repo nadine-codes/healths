@@ -17,6 +17,15 @@ def _sorted(rows, key="date"):
     return sorted(rows, key=lambda r: r.get(key) or "", reverse=True)
 
 
+def briefing(summary: dict | None) -> list[dict]:
+    """Alexa Flash Briefing feed (JSON). Alexa reads `mainText` when someone asks for the summary."""
+    if not summary:
+        return []
+    return [{"uid": f"healthsurface-summary-{summary['date']}", "updateDate": summary["generated_at"].replace("+00:00", ".0Z"),
+             "titleText": f"{config.APP_NAME} summary for {summary['day']}", "mainText": summary["spoken"],
+             "redirectionUrl": config.SITE_URL}]
+
+
 def handler(event, context):
     path = (event.get("rawPath") or "").removeprefix("/api").strip("/")
     if path == "health":
@@ -29,7 +38,9 @@ def handler(event, context):
         return _respond({"app": config.APP_NAME, "tagline": config.TAGLINE, "disclaimer": config.DISCLAIMER,
                          "taxonomy": taxonomy.as_dict(), "last_run": last.get("started_at"),
                          "sources": {k: {"name": v["name"], "label": v["label"]} for k, v in config.NEWS_SOURCES.items()},
-                         "brief": brief})
+                         "brief": brief, "summary": store.get_meta("summary")})
+    if path == "briefing":
+        return _respond(briefing(store.get_meta("summary")))
     if path == "news":
         rows = [r for r in store.scan_all(store.news) if not classify.is_blocked_story(r.get("title"), r.get("summary"))]
         return _respond({"items": _sorted(rows)[:600]})

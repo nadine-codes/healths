@@ -4,6 +4,7 @@ import os
 APP_NAME = "HealthSurface"
 TAGLINE = "Health news, funding and jobs, labeled by source type."
 DISCLAIMER = "This is a reading list, not medical advice."
+SITE_URL = os.environ.get("SITE_URL", "https://d27dduaz3tjeg8.cloudfront.net")
 
 CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "")
 USER_AGENT = f"{APP_NAME}/1.0 (+https://github.com/nadine-codes/healths) {CONTACT_EMAIL}".strip()

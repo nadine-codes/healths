@@ -2,7 +2,10 @@
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+from botocore.exceptions import ClientError
 
 from .. import classify, config
 from ..sources import funding as funding_src
@@ -184,7 +187,66 @@ def ingest_brief(report: dict) -> None:
     report["brief"] = len(bullets)
 
 
-STAGES = {"news": ingest_news, "funding": ingest_funding, "jobs": ingest_jobs, "brief": ingest_brief}
+SUMMARY_TZ = ZoneInfo("America/New_York")  # the summary is dated for US morning listeners
+
+
+def _spoken_money(n: float) -> str:
+    for size, word in ((1e9, "billion"), (1e6, "million")):
+        if n >= size:
+            return f"${n / size:.1f}".removesuffix(".0") + f" {word}"
+    return f"${n:,.0f}"
+
+
+def summary_items(today) -> list[dict]:
+    """Stories from the last three days plus the week's biggest SEC and NIH funding, newest first."""
+    stories = sorted((s for s in store.scan_all(store.news) if s.get("classifier") == "model" and s.get("summary")
+                      and not classify.is_blocked_story(s.get("title"), s.get("summary"))),
+                     key=lambda s: s.get("date") or "", reverse=True)
+    cutoff = (today - timedelta(days=3)).isoformat()
+    picked = [s for s in stories if (s.get("date") or "") >= cutoff][:30]
+    picked += [s for s in stories if s not in picked][: max(0, 15 - len(picked))]
+    week = (today - timedelta(days=7)).isoformat()
+    money = sorted((r for r in store.scan_all(store.funding) if r.get("amount_usd") and (r.get("date") or "") >= week
+                    and r.get("source_kind") != "News story"),  # news funding is already in the stories
+                   key=lambda r: r["amount_usd"], reverse=True)[:4]
+    funding = [{"title": (f"{r['company']} was awarded a {_spoken_money(r['amount_usd'])} {r['source_kind']}"
+                          if r["source_kind"].startswith("NIH") else
+                          f"{r['company']} reported raising {_spoken_money(r['amount_usd'])} in an SEC Form D filing"),
+                "summary": f"Project: {r['project_title']}." if r.get("project_title") else "",
+                "label": r["source_kind"], "source_name": r["source_name"], "url": r["source_url"]} for r in money]
+    return [{k: s.get(k) for k in ("title", "summary", "label", "source_name", "url")} for s in picked] + funding
+
+
+def _summary_invoke(report: dict):
+    def invoke(system: str, user: str) -> str:
+        for model in (bedrock.SUMMARY_MODEL_ID, bedrock.SUMMARY_FALLBACK_MODEL_ID):
+            try:
+                text = bedrock.invoke(system, user, 1500, model, 0.5)
+                report["summary_model"] = model
+                return text
+            except ClientError as err:  # e.g. model access not granted yet: try the next writer
+                log.warning("summary model %s failed: %s", model, err)
+        raise RuntimeError("no summary model available")
+    return invoke
+
+
+def ingest_summary(report: dict) -> None:
+    """The daily summary: one model call (two if the first reply fails a check) each run."""
+    invoke = _model()
+    if not invoke:
+        return
+    now = datetime.now(SUMMARY_TZ)
+    items = summary_items(now.date())
+    summary = classify.todays_summary(items, _summary_invoke(report))
+    day, dropped = f"{now:%A}, {now:%B} {now.day}", summary.pop("dropped")
+    store.put_meta("summary", {**summary, "date": now.date().isoformat(), "day": day,
+                               "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                               "spoken": classify.spoken_summary(summary, day)})
+    report["summary"] = {"items": len(items), "cited": len(summary["sources"]), "dropped": dropped}
+
+
+STAGES = {"news": ingest_news, "funding": ingest_funding, "jobs": ingest_jobs, "brief": ingest_brief,
+          "summary": ingest_summary}
 
 
 def handler(event, context):

@@ -124,3 +124,105 @@ def test_brief_keeps_each_storys_own_label():
 def test_blocked_story_terms(text, blocked):
     assert classify.is_blocked_story(text) is blocked
     assert classify.is_blocked_story("Neutral headline", text) is blocked  # description is checked too
+
+
+def summary_items():
+    return [
+        {"title": "AI reads ECGs to flag heart attacks", "summary": "A peer-reviewed study tested an ECG model.",
+         "label": "Peer-reviewed study", "source_name": "PubMed", "url": "https://pubmed.example/1"},
+        {"title": "FDA clears a home blood test", "summary": "The FDA cleared a finger-prick test.",
+         "label": "Regulatory action", "source_name": "openFDA Device Clearances", "url": "https://fda.example/2"},
+        {"title": "Acme Bio was awarded a $2.5 million NIH SBIR grant", "summary": "Project: Faster sepsis tests.",
+         "label": "NIH SBIR grant", "source_name": "NIH RePORTER", "url": "https://nih.example/3"},
+    ]
+
+
+def summary_reply(**overrides):
+    base = {"paragraphs": [
+        [{"item": 0, "text": "A new peer-reviewed study tested an AI model that reads ECGs to flag heart attacks early, "
+                             "which could help emergency rooms sort patients faster when every minute counts for the heart."},
+         {"item": 3, "text": "Researchers say the ECG model was tested on thousands of tracings from busy hospitals."},
+         {"item": 4, "text": "A second peer-reviewed study looked at how wearables track sleep in older adults at home."}],
+        [{"item": None, "text": "Now, the regulators."},
+         {"item": 1, "text": "The FDA cleared a home blood test that needs only a finger prick, so some routine lab "
+                             "checks could move from the clinic to the kitchen table for a lot of people."},
+         {"item": 1, "text": "The cleared test sends its blood results to a phone app within minutes of the finger prick."}],
+        [{"item": None, "text": "And finally, the money."},
+         {"item": 2, "text": "Acme Bio was awarded a $2.5 million NIH grant to build faster sepsis tests, which matters "
+                             "because sepsis moves quickly and early tests help hospitals act sooner."}],
+    ]}
+    return {**base, **overrides}
+
+
+def five_items():
+    return summary_items() + [
+        {"title": "Busy hospitals test an ECG model", "summary": "It read thousands of tracings.", "label": "Reported news",
+         "source_name": "The Conversation", "url": "https://tc.example/4"},
+        {"title": "Wearables track sleep in older adults", "summary": "A peer-reviewed study at home.",
+         "label": "Peer-reviewed study", "source_name": "PubMed", "url": "https://pubmed.example/5"}]
+
+
+def test_summary_links_come_from_cited_items_not_the_model():
+    out = classify.validate_summary(summary_reply(), five_items())
+    assert [s["url"] for s in out["sources"]][:3] == ["https://pubmed.example/1", "https://tc.example/4", "https://pubmed.example/5"]
+    assert len(out["paragraphs"]) == 3 and out["dropped"] == 0
+
+
+@pytest.mark.parametrize("text", [
+    "The World Health Organization announced a new initiative on resistance.",  # name not in the item
+    "Acme Bio was awarded a $9 million grant for sepsis tests.",                 # number not in the item
+    "This sepsis test is a breakthrough for hospitals.",                         # banned hype word
+    "Read about the sepsis tests at https://nih.example/3 today.",               # links do not read aloud
+])
+def test_summary_drops_ungrounded_sentences(text):
+    assert not classify.sentence_grounded(text, summary_items()[2])
+
+
+def test_summary_linking_lines_carry_no_facts():
+    assert classify.sentence_grounded("Now, the money.", None)
+    assert not classify.sentence_grounded("Now, the WHO weighs in with 3 new rules.", None)
+
+
+def test_summary_always_says_a_preprint_is_not_peer_reviewed():
+    items = five_items()
+    items[4] = {**items[4], "label": "Preprint"}
+    reply = summary_reply()
+    reply["paragraphs"][0][2]["text"] = "A second peer-reviewed study looked at how wearables track sleep in older adults."
+    assert "https://pubmed.example/5" not in [s["url"] for s in classify.validate_summary(reply, items)["sources"]]
+    reply["paragraphs"][0][2]["text"] = "A second study looked at how wearables track sleep in older adults at home."
+    out = classify.validate_summary(reply, items)
+    assert "In a preprint that hasn't been peer reviewed yet, a second study" in out["paragraphs"][0]
+    reply["paragraphs"][0][2]["text"] = "A preprint, not yet peer reviewed, looked at how wearables track sleep in older adults."
+    out = classify.validate_summary(reply, items)
+    assert "In a preprint that" not in out["paragraphs"][0]
+
+
+def test_preprint_lead_ins_never_repeat_back_to_back():
+    leads = [classify.flag_preprint("A study looked at sleep.", n).split(",")[0] for n in range(8)]
+    assert len(set(leads[:4])) == 4
+    assert all(a != b for a, b in zip(leads, leads[1:]))
+    assert leads.count(leads[0]) == 1
+
+
+def test_summary_rejects_too_few_items():
+    reply = {"paragraphs": [summary_reply()["paragraphs"][1], summary_reply()["paragraphs"][2]]}
+    with pytest.raises(ValueError):
+        classify.validate_summary(reply, summary_items())
+
+
+def test_summary_retries_once_with_the_reason():
+    prompts = []
+    items = five_items()
+
+    def invoke(system, user):
+        prompts.append(user)
+        return json.dumps({"paragraphs": []} if len(prompts) == 1 else summary_reply())
+
+    out = classify.todays_summary(items, invoke)
+    assert len(prompts) == 2 and "rejected" in prompts[1] and out["sources"]
+
+
+def test_spoken_summary_has_intro_and_disclaimer():
+    text = classify.spoken_summary({"paragraphs": ["One.", "Two."]}, "Friday, October 2")
+    assert text.startswith("Here's your HealthSurface summary for Friday, October 2. One. Two.")
+    assert text.endswith("not medical advice.")

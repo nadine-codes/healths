@@ -13,6 +13,7 @@ const CONTRACT_SOURCES = [
   ["Experis", "https://www.experis.com"],
 ];
 const PAGE = 40;
+const LEAD_STORIES = 7;  // the lead story plus three rows of two, then the In focus band
 const state = { meta: null, data: {}, shown: { news: PAGE, funding: PAGE, jobs: PAGE } };
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -149,17 +150,25 @@ const VIEWS = {
 
 function render(name) {
   const list = $(`#${name}-list`);
+  const rest = $(`#${name}-list-more`);  // News only: stories after the In focus band
   const items = state.data[name];
   if (!items) return;
   const rows = VIEWS[name].filter(items, formValues(name));
   $(`[data-count="${name}"]`).textContent = `${rows.length} of ${items.length} shown`;
+  if (rest) rest.innerHTML = "";
   if (!rows.length) {
     list.innerHTML = `<li class="empty">${esc(items.length ? VIEWS[name].empty.replace(/ yet.*$/, ".") : VIEWS[name].empty)}</li>`;
     return;
   }
   const n = state.shown[name];
-  list.innerHTML = rows.slice(0, n).map((row, idx) => VIEWS[name].card(row, idx)).join("") +
-    (rows.length > n ? `<li><button class="more" data-more="${name}">Show more (${rows.length - n} left)</button></li>` : "");
+  const cards = rows.slice(0, n).map((row, idx) => VIEWS[name].card(row, idx));
+  const more = rows.length > n ? `<li><button class="more" data-more="${name}">Show more (${rows.length - n} left)</button></li>` : "";
+  if (rest) {
+    list.innerHTML = cards.slice(0, LEAD_STORIES).join("");
+    rest.innerHTML = cards.slice(LEAD_STORIES).join("") + more;
+  } else {
+    list.innerHTML = cards.join("") + more;
+  }
 }
 
 async function load(name) {
@@ -235,7 +244,7 @@ function renderFocus() {
   if (!focus.items.length) { el.hidden = true; return; }
   el.hidden = false;
   el.innerHTML = `<div class="wrap">
-    <div class="focus-head"><h2>In focus</h2><p>Today's brief, picked from the stories below.</p></div>
+    <div class="focus-head"><h2>In focus</h2><p>A closer look at today's picks.</p></div>
     <div class="focus-grid">
       <article class="feature" aria-live="polite"></article>
       <div class="playlist"><p class="playlist-label">Up next</p><ol>${focus.items.map((it, i) => `
@@ -296,6 +305,44 @@ function showFocus(i) {
   focus.timer = setTimeout(tick, focus.dwell);
 }
 
+// ---------- Summary band: the AI-written daily summary, with links to every source it mentions ----------
+function renderSummary() {
+  const sum = state.meta?.summary;
+  const el = $("#summary");
+  if (!sum?.paragraphs?.length) { el.hidden = true; return; }
+  const canSpeak = "speechSynthesis" in window && sum.spoken;
+  el.hidden = false;
+  el.innerHTML = `<div class="wrap">
+    <div class="focus-head"><h2>Summary</h2><p>Today's top health news in a couple of minutes.</p></div>
+    <div class="focus-grid">
+      <article class="feature summary-card">
+        <p class="summary-eyebrow">${esc(sum.day || fmtDate(sum.date))} · Written by AI</p>
+        <h3>Today's ${esc(state.meta.app || "HealthSurface")} summary</h3>
+        <div class="summary-text">${sum.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("")}</div>
+        <div class="feature-actions">
+          ${canSpeak ? `<button type="button" class="btn" data-listen aria-pressed="false">&#9654; Listen</button>` : ""}
+          <span class="feature-meta">Written by an AI model from the ${sum.sources.length} sources listed. It can make mistakes, so check the source.</span>
+        </div>
+      </article>
+      <div class="playlist"><p class="playlist-label">Sources in this summary</p><ol>${sum.sources.map((src, i) => `
+        <li>${extLink(src.url, `
+          <span class="num">${String(i + 1).padStart(2, "0")}</span>
+          <span>${kicker(src.label)}<span class="t">${esc(src.title)}</span><span class="src-name">${esc(src.source_name)} &#8599;</span></span>`)}</li>`).join("")}</ol></div>
+    </div></div>`;
+}
+
+// Reads the summary aloud in the browser, the same text a voice assistant reads.
+function toggleListen(btn) {
+  const synth = window.speechSynthesis;
+  const set = (on) => { btn.setAttribute("aria-pressed", on); btn.innerHTML = on ? "&#9632; Stop" : "&#9654; Listen"; };
+  if (synth.speaking) { synth.cancel(); set(false); return; }
+  const say = new SpeechSynthesisUtterance(state.meta.summary.spoken);
+  say.lang = "en-US";
+  say.onend = say.onerror = () => set(false);
+  set(true);
+  synth.speak(say);
+}
+
 async function init() {
   try {
     state.meta = await getJSON("/api/meta");
@@ -326,11 +373,14 @@ async function init() {
   if (state.meta.last_run) {
     $("[data-last-run]").textContent = `Last refreshed ${new Date(state.meta.last_run).toLocaleString()}.`;
   }
+  renderSummary();
   $("[data-dateline]").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   document.addEventListener("click", (e) => {
     const more = e.target.closest("[data-more]");
     if (more) { state.shown[more.dataset.more] += PAGE; render(more.dataset.more); }
+    const listen = e.target.closest("[data-listen]");
+    if (listen) toggleListen(listen);
     const pick = e.target.closest("[data-focus]");
     if (pick) showFocus(Number(pick.dataset.focus));
     const tab = e.target.closest('[role="tab"]');
