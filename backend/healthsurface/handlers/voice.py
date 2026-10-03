@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError
 
 log = logging.getLogger()
 
-VOICE = os.environ.get("SUMMARY_VOICE", "Ruth")  # a conversational US English generative voice
+VOICE = os.environ.get("SUMMARY_VOICE", "Danielle")  # a warm, conversational US English generative voice
 SITE_BUCKET = os.environ.get("SITE_BUCKET", "")
 MAX_CHARS = 2900  # Polly's limit per request is 3,000 characters
 
