@@ -49,23 +49,6 @@
   <main>
     <section id="panel-news" role="tabpanel" aria-labelledby="tab-news">
       <div id="summary" class="focus summary-band" hidden></div>
-      <section id="ask" class="ask" aria-labelledby="ask-title" hidden>
-        <div class="wrap">
-          <h2 id="ask-title">Ask what's new</h2>
-          <form class="ask-form" novalidate>
-            <label class="sr-only" for="ask-q">Your question</label>
-            <input id="ask-q" name="q" type="text" maxlength="300" autocomplete="off" placeholder="Ask about stories, funding or jobs">
-            <button type="submit" class="ask-go">Ask</button>
-          </form>
-          <div class="ask-chips">
-            <button type="button" data-chip>What is new in sleep research?</button>
-            <button type="button" data-chip>Who raised money in diabetes this month?</button>
-            <button type="button" data-chip>Open product design roles in health tech</button>
-          </div>
-          <p class="ask-notice">Don't enter personal health details. Answers come from news stories only. This is a reading list, not medical advice. <a href="privacy.html">Privacy</a></p>
-          <div class="ask-out" aria-live="polite"></div>
-        </div>
-      </section>
       <div class="wrap">
         <div class="section-head">
           <h2>Latest</h2>
@@ -140,6 +123,33 @@
       </div>
     </section>
   </main>
+
+  <button type="button" class="ask-fab" aria-controls="ask" aria-expanded="false" aria-label="Ask what's new" hidden>
+    <img src="brand/chat-icon.svg" alt="" width="64" height="64">
+  </button>
+  <section id="ask" class="ask" role="dialog" aria-labelledby="ask-title" hidden>
+    <div class="ask-head">
+      <img src="brand/chat-icon.svg" alt="" width="32" height="32">
+      <h2 id="ask-title">Ask what's new</h2>
+      <button type="button" class="ask-close" aria-label="Close chat">&times;</button>
+    </div>
+    <div class="ask-body">
+      <div class="ask-chips">
+        <button type="button" data-chip>What is new in sleep research?</button>
+        <button type="button" data-chip>Who raised money in diabetes this month?</button>
+        <button type="button" data-chip>Open product design roles in health tech</button>
+      </div>
+      <div class="ask-out" aria-live="polite"></div>
+    </div>
+    <div class="ask-foot">
+      <form class="ask-form" novalidate>
+        <label class="sr-only" for="ask-q">Your question</label>
+        <input id="ask-q" name="q" type="text" maxlength="300" autocomplete="off" placeholder="Ask about stories, funding or jobs">
+        <button type="submit" class="ask-go">Ask</button>
+      </form>
+      <p class="ask-notice">Don't enter personal health details. Answers come from news stories only. This is a reading list, not medical advice. <a href="privacy.html">Privacy</a></p>
+    </div>
+  </section>
 
   <footer class="site-footer">
     <div class="wrap">

@@ -356,10 +356,20 @@ function toggleListen(btn) {
 
 // ---------- Ask what's new: answers only from stored items, with sources ----------
 function renderAsk() {
-  if (!state.meta?.ask_enabled) return;  // kill switch: the box stays hidden
-  $("#ask").hidden = false;
+  if (!state.meta?.ask_enabled) return;  // kill switch: the launcher stays hidden
+  const panel = $("#ask"), fab = $(".ask-fab");
+  fab.hidden = false;
+  const setOpen = (open) => {
+    panel.hidden = !open;
+    fab.setAttribute("aria-expanded", String(open));
+    fab.classList.toggle("is-open", open);
+    if (open) input.focus(); else fab.focus();
+  };
+  fab.addEventListener("click", () => setOpen(panel.hidden));
+  $(".ask-close").addEventListener("click", () => setOpen(false));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !panel.hidden) setOpen(false); });
   const form = $(".ask-form"), out = $(".ask-out"), input = $("#ask-q");
-  const show = (html, cls = "") => { out.className = `ask-out ${cls}`; out.innerHTML = html; };
+  const show = (html, cls = "") => { out.className = `ask-out ${cls}`; out.innerHTML = html; out.scrollIntoView({ block: "nearest" }); };
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const question = input.value.trim();
