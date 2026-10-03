@@ -24,14 +24,16 @@ NEWS_SOURCES = {
     "openfda_devices": {"name": "openFDA Device Clearances", "label": "Regulatory action", "free_to_read": True, "commercial": False},
     "medrxiv": {"name": "medRxiv", "label": "Preprint", "free_to_read": True, "commercial": False},
     "pubmed": {"name": "PubMed", "label": "Peer-reviewed study", "free_to_read": True, "commercial": False},
+    # Commercial outlets are disabled. MedCity News terms prohibit automated access, republishing and
+    # commercial use without consent; the others block AWS IPs and were not cleared. Kept for the record.
     "medcity": {"name": "MedCity News", "label": "Reported news", "free_to_read": True, "commercial": True,
-                "feed": "https://medcitynews.com/feed/"},
+                "enabled": False, "feed": "https://medcitynews.com/feed/"},
     "fierce_healthcare": {"name": "Fierce Healthcare", "label": "Reported news", "free_to_read": True, "commercial": True,
-                          "feed": "https://www.fiercehealthcare.com/rss/xml"},
+                          "enabled": False, "feed": "https://www.fiercehealthcare.com/rss/xml"},
     "biopharma_dive": {"name": "BioPharma Dive", "label": "Reported news", "free_to_read": True, "commercial": True,
-                       "feed": "https://www.biopharmadive.com/feeds/news/"},
+                       "enabled": False, "feed": "https://www.biopharmadive.com/feeds/news/"},
     "healthcare_dive": {"name": "Healthcare Dive", "label": "Reported news", "free_to_read": True, "commercial": True,
-                        "feed": "https://www.healthcaredive.com/feeds/news/"},
+                        "enabled": False, "feed": "https://www.healthcaredive.com/feeds/news/"},
 }
 
 # PubMed query: health tech and translational topics our audience follows.

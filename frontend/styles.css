@@ -229,3 +229,4 @@ li:has(> .more) { grid-column: 1 / -1; }
 @media (prefers-reduced-motion: reduce) {
   .feature.playing .progress span { animation: none; }
 }
+.site-footer a { color: var(--band-text); }

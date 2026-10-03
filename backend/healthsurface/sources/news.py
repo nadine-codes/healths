@@ -209,6 +209,7 @@ FETCHERS = {
     "pubmed": fetch_pubmed,
     **{k: (lambda k=k: fetch_commercial(k)) for k, v in config.NEWS_SOURCES.items() if v.get("commercial")},
 }
+FETCHERS = {k: fn for k, fn in FETCHERS.items() if config.NEWS_SOURCES[k].get("enabled", True)}
 
 
 def fetch_all() -> tuple[list[dict], dict]:

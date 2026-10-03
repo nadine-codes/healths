@@ -45,3 +45,9 @@ def test_amended_form_d_is_skipped():
 def test_slug_tokens_for_board_lookup():
     assert jobs._slug_tokens("Tiny Health, Inc.") == ["tinyhealth", "tiny-health"]
     assert jobs._slug_tokens("Ro") == []  # too short to verify safely
+
+
+def test_disabled_sources_are_not_fetched():
+    from healthsurface import config
+    assert "medcity" not in news.FETCHERS
+    assert all(config.NEWS_SOURCES[k].get("enabled", True) for k in news.FETCHERS)

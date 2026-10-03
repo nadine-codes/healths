@@ -1,6 +1,7 @@
 """Tiny stdlib HTTP helpers shared by all fetchers."""
 import gzip
 import json
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -46,12 +47,16 @@ def robots_allowed(url: str) -> bool:
 
 
 class RateLimiter:
+    """Minimum gap between calls; thread-safe so pooled fetchers share one budget."""
+
     def __init__(self, per_second: float):
         self.min_gap = 1.0 / per_second
         self.last = 0.0
+        self._lock = threading.Lock()
 
     def wait(self):
-        gap = time.monotonic() - self.last
-        if gap < self.min_gap:
-            time.sleep(self.min_gap - gap)
-        self.last = time.monotonic()
+        with self._lock:
+            gap = time.monotonic() - self.last
+            if gap < self.min_gap:
+                time.sleep(self.min_gap - gap)
+            self.last = time.monotonic()

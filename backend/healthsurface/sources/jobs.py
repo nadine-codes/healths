@@ -55,8 +55,14 @@ def _job(company: dict, provider: str, raw_id, title, url, location, posted, com
     }
 
 
+# jobs.lever.co and api.lever.co robots.txt ask for a 1 second crawl delay.
+_lever_rate = http.RateLimiter(per_second=1)
+
+
 def fetch_board(company: dict) -> list[dict]:
     provider, token = company["provider"], company["token"]
+    if provider == "lever":
+        _lever_rate.wait()
     data = http.get_json(ENDPOINTS[provider].format(t=token), timeout=25)
     jobs = []
     if provider == "greenhouse":
@@ -84,7 +90,7 @@ HEALTH_RE = re.compile(r"health|medical|clinic|biotech|pharma|patient|care\b|hos
 
 
 def fetch_remoteok(limit: int = 60) -> list[dict]:
-    """RemoteOK public API. Their terms require crediting RemoteOK and linking to the original posting."""
+    """Remote OK public API. Their terms require crediting Remote OK and linking to the posting on remoteok.com."""
     data = http.get_json("https://remoteok.com/api", timeout=25)
     jobs = []
     for j in data[1:]:  # first element is the legal notice
@@ -94,7 +100,8 @@ def fetch_remoteok(limit: int = 60) -> list[dict]:
         company = {"name": html.unescape(j.get("company") or "Unknown"), "token": "remoteok"}
         job = _job(company, "greenhouse", j.get("id"), j.get("position"), j.get("url"), j.get("location") or "Remote",
                    j.get("date"), " ".join(j.get("tags") or []), remote=True)
-        job.update(id=f"remoteok#{j.get('id')}", source="remoteok", source_name="RemoteOK", sector=None, focus_areas=[])
+        # Remote OK API terms: name "Remote OK" as the source and link (followed) to the job's remoteok.com URL.
+        job.update(id=f"remoteok#{j.get('id')}", source="remoteok", source_name="Remote OK", sector=None, focus_areas=[])
         jobs.append(job)
         if len(jobs) >= limit:
             break

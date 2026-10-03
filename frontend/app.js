@@ -128,7 +128,8 @@ const VIEWS = {
     },
     card(i) {
       const bits = [i.job_type, i.employment_type, i.seniority, i.remote ? "Remote" : null].filter(Boolean);
-      const via = i.source === "remoteok" ? `Via ${extLink("https://remoteok.com", "RemoteOK")}` : `Via ${esc(i.source_name)}`;
+      // Remote OK's API terms: name "Remote OK" and link (no nofollow) to the posting on remoteok.com.
+      const via = i.source === "remoteok" ? `Via ${extLink(i.url, "Remote OK")}` : `Via ${esc(i.source_name)}`;
       return `<li class="row">
         <div>
           <div class="eyebrow">${esc(i.company)}</div>

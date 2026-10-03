@@ -98,16 +98,15 @@ To refresh the verified job boards: `python3 scripts/verify_boards.py`.
 | openFDA drugs@FDA, device 510(k) and De Novo | Approvals and clearances | Regulatory action | CC0 public domain. Links go to FDA accessdata pages. |
 | FDA press announcements RSS | Press announcements | Regulatory action | US government work. **Currently blocked from AWS IP ranges (HTTP 404)**, so the fetcher logs and skips it. |
 | medRxiv API (api.biorxiv.org) | Preprints | Preprint | Metadata API for reuse. We store title, link, date, category and the license field, never the abstract. |
-| PubMed E-utilities | RCTs, meta-analyses and systematic reviews on health tech topics | Peer-reviewed study | NCBI policy followed (`tool` and `email` sent, under 3 requests per second). Title, journal, date and link only; no abstracts. Links go to PubMed Central when an open copy exists. |
+| PubMed E-utilities | RCTs, meta-analyses and systematic reviews on health tech topics | Peer-reviewed study | NCBI policy followed: `tool` and `email` sent, under 3 requests per second, and NCBI's disclaimer and copyright notice linked in the site footer as their scripting guidelines require. Title, journal, date and link only; no abstracts, since publishers may hold copyright. Links go to PubMed Central when an open copy exists. |
 | SEC EDGAR full-text search and Form D XML | Funding | n/a | SEC fair access: identifying User-Agent, under 10 requests per second. |
-| MedCity News RSS | Industry news | Reported news | robots.txt allows feed and article paths. Headline, link, date and our own summary only. Each article URL passes the free-to-read check. |
-| BioPharma Dive, Healthcare Dive RSS | Industry news | Reported news | Feeds load, but article pages return 403 to AWS IPs, so the free-to-read rule skips every item. Kept in config and logged. |
-| Fierce Healthcare RSS | Industry news | Reported news | Returns 403 to AWS IPs. Logged and skipped. |
+| MedCity News RSS | n/a | n/a | **Disabled.** Its [terms of service](https://medcitynews.com/medcitizen-terms-of-service/) prohibit robots or automated access, republishing, and commercial use without written consent. All stored MedCity items were deleted. |
+| BioPharma Dive, Healthcare Dive, Fierce Healthcare RSS | n/a | n/a | **Disabled.** They block AWS IPs, and their terms were not cleared for this use. |
 | MobiHealthNews, NIH news releases | n/a | n/a | Return 403 to automated requests. Not used. |
-| Medical News Today | n/a | n/a | Not added. It is consumer health content and outside our scope tonight. |
+| Medical News Today | n/a | n/a | Not added. It is consumer health content and outside our scope. |
 | STAT, Endpoints | n/a | n/a | Not used (paywalled). |
-| Greenhouse, Lever, Ashby public job board APIs | Jobs | n/a | Public APIs meant for embedding a company's own board. Only tokens verified to return jobs are used. |
-| RemoteOK API | Remote jobs (health-related only) | n/a | Their terms require crediting RemoteOK and linking to the original posting, and every card does both. |
+| Greenhouse, Lever, Ashby public job board APIs | Jobs | n/a | Official public, no-login endpoints for each employer's published postings. robots.txt allows the API paths. Lever asks for a 1 second crawl delay, which we follow. No published terms restrict reading public postings: Lever's and Ashby's terms bind their customers, and Greenhouse publishes no API or job board terms. The docs describe the APIs as built for a company's own careers page, so third-party use is permitted by silence, not explicitly granted. We keep only the title, location, date and link (no descriptions), link every job to the employer's own posting, and remove closed jobs on each run. |
+| Remote OK API | Remote jobs (health-related only) | n/a | The API terms (returned in the feed) require naming "Remote OK" as the source and a followed link back to the posting on remoteok.com. Every card says "Via Remote OK" and links to that job's Remote OK page. We do not use their logo. |
 | ClinicalTrials.gov, Europe PMC, OpenAlex, NIH RePORTER, SBIR.gov | n/a | n/a | Not built tonight. |
 
 **Free-to-read check** (commercial links only): robots.txt, then the HTTP status (401, 402 and 403 are skipped), then the JSON-LD `isAccessibleForFree`, then obvious subscribe-wall markers. The checker reads at most the first 150 KB of HTML and stores none of it. Skipped items and reasons are logged and kept in the last run report.
