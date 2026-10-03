@@ -24,3 +24,4 @@ Agent: Claude Code (Claude Opus 5.5), working in the terminal with the AWS CLI, 
 - The full brief in `healths-claude-code-prompt.md` (build order, cut order, source rules).
 - "Create a project called HealthSurface with one issue per build step (0 to 7)... Move each issue to In Progress when you start it and Done when it is deployed and checked." The agent tracked every step in Linear through the Linear MCP connector.
 - "You can just keep it public": the repo stays public by the owner's choice, so the agent redacted the contact email from committed deploy logs.
+- 17:27 Final check in a fresh browser profile (no cookies, no login): every route returns 200, all three tabs render cards, the brief shows, and the narrow layout works. Proof: `proof/07-*`. Note: headless Chrome will not render narrower than 500px, so the narrow screenshot is at 500px.

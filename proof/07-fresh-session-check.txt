@@ -1,0 +1,15 @@
+## Fresh-session check 2026-10-03T00:25:02Z, no cookies, no login
+/              200 4173B 0.475475s
+/app.js        200 9979B 0.418946s
+/styles.css    200 5384B 0.328023s
+/api/meta      200 5385B 0.447726s
+/api/news      200 88318B 0.574370s
+/api/funding   200 32922B 0.443079s
+/api/jobs      200 773418B 1.789824s
+/api/nope      404 21B 0.320557s
+news     items: 135
+funding  items: 76
+jobs     items: 1460
+news     cards=40 count="135 of 135 shown"
+funding  cards=40 count="76 of 76 shown"
+jobs     cards=40 count="1460 of 1460 shown"
