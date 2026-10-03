@@ -41,17 +41,21 @@ function fillSelect(select, values, anyLabel) {
   select.innerHTML = `<option value="">${esc(anyLabel)}</option>` + values.map((v) => `<option>${esc(v)}</option>`).join("");
 }
 
-function labelBadge(label) {
+// Source type as a newspaper kicker; the tooltip explains what the label means.
+function kicker(label) {
   const tip = state.meta?.taxonomy?.evidence_labels?.[label] || "";
-  return `<span class="label" data-l="${esc(label)}" title="${esc(tip)}" aria-label="Source type: ${esc(label)}. ${esc(tip)}">${esc(label)}</span>`;
+  return `<span class="kicker" data-l="${esc(label)}" title="${esc(tip)}" aria-label="Source type: ${esc(label)}. ${esc(tip)}">${esc(label)}</span>`;
 }
 
-function tagChips(item) {
-  const chips = [];
-  if (item.sector) chips.push(`<span class="chip sector">${esc(item.sector)}</span>`);
-  for (const f of item.focus_areas || []) chips.push(`<span class="chip">${esc(f)}</span>`);
-  return chips.length ? `<div class="tags">${chips.join("")}</div>` : "";
+function tagLine(item) {
+  const tags = [];
+  if (item.sector) tags.push(`<span class="sector">${esc(item.sector)}</span>`);
+  for (const f of item.focus_areas || []) tags.push(`<span>${esc(f)}</span>`);
+  return tags.length ? `<div class="tags">${tags.join("")}</div>` : "";
 }
+
+const byline = (...parts) => `<div class="byline">${parts.filter(Boolean).map((p) => `<span>${p}</span>`).join("")}</div>`;
+const extLink = (url, text) => `<a href="${esc(url)}" target="_blank" rel="noopener">${text}</a>`;
 
 function formValues(name) {
   return Object.fromEntries(new FormData($(`form[data-for="${name}"]`)).entries());
@@ -66,12 +70,14 @@ const VIEWS = {
     filter(items, f) {
       return items.filter((i) => matchesTags(i, f) && (!f.label || i.label === f.label) && matchesQuery(f.q, i.title, i.source_name));
     },
-    card(i) {
-      return `<li class="card">
-        <div class="meta">${labelBadge(i.label)}<span>${esc(i.source_name)}${i.journal ? " · " + esc(i.journal) : ""}</span><time>${fmtDate(i.date)}</time></div>
-        <h3><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a></h3>
-        ${i.summary ? `<p class="summary">${esc(i.summary)}</p>` : ""}
-        ${tagChips(i)}</li>`;
+    card(i, index) {
+      const body = `<p class="summary">${esc(i.summary || "")}</p>
+        ${byline(esc(i.source_name), i.journal ? esc(i.journal) : "", `<time>${fmtDate(i.date)}</time>`)}
+        ${tagLine(i)}`;
+      const head = `${kicker(i.label)}<h3>${extLink(i.url, esc(i.title))}</h3>`;
+      return index === 0
+        ? `<li class="story lead"><div>${head}</div><div>${body}</div></li>`
+        : `<li class="story">${head}${body}</li>`;
     },
     empty: "No stories match these filters yet.",
   },
@@ -89,15 +95,20 @@ const VIEWS = {
       });
     },
     card(i) {
-      const facts = [i.round_stage, i.investors?.length ? "Investors: " + i.investors.join(", ") : null].filter(Boolean);
-      return `<li class="card">
-        <div class="meta"><span>${esc(i.source_kind)}</span><time>${fmtDate(i.date)}</time>${i.state ? `<span>${esc(i.state)}</span>` : ""}</div>
-        <h3>${esc(i.company)}</h3>
-        <p class="amount">${esc(fmtMoney(i.amount_usd))}${i.source_kind === "SEC Form D" && i.amount_usd != null ? ' <span class="meta">sold so far, as filed</span>' : ""}</p>
-        ${i.offering_amount_usd ? `<p class="meta">Total offering: ${esc(fmtMoney(i.offering_amount_usd))}${i.industry ? " · " + esc(i.industry) : ""}</p>` : ""}
-        ${facts.length ? `<p>${esc(facts.join(" · "))}</p>` : ""}
-        <p class="meta"><a href="${esc(i.source_url)}" target="_blank" rel="noopener">View source: ${esc(i.source_name)}</a></p>
-        ${tagChips(i)}</li>`;
+      const facts = [i.round_stage, i.investors?.length ? "Investors: " + i.investors.join(", ") : null,
+        i.offering_amount_usd ? `Total offering ${fmtMoney(i.offering_amount_usd)}` : null].filter(Boolean);
+      const formD = i.source_kind === "SEC Form D";
+      return `<li class="row">
+        <div>
+          <div class="eyebrow">${esc(i.source_kind)}${i.industry ? " · " + esc(i.industry) : ""}</div>
+          <h3>${esc(i.company)}</h3>
+          ${facts.length ? `<p class="facts">${esc(facts.join(" · "))}</p>` : ""}
+          ${byline(`<time>${fmtDate(i.date)}</time>`, esc(i.state || ""), `<span class="src">${extLink(i.source_url, "View source: " + esc(i.source_name))}</span>`)}
+          ${tagLine(i)}
+        </div>
+        <div class="side"><div class="amount">${esc(fmtMoney(i.amount_usd))}</div>
+          ${formD && i.amount_usd != null ? '<span class="amount-note">sold so far, as filed</span>' : ""}</div>
+      </li>`;
     },
     empty: "Nothing to show yet. Funding records appear after the next refresh.",
   },
@@ -117,12 +128,17 @@ const VIEWS = {
     },
     card(i) {
       const bits = [i.job_type, i.employment_type, i.seniority, i.remote ? "Remote" : null].filter(Boolean);
-      return `<li class="card">
-        <div class="meta"><span>${esc(i.company)}</span><span>${esc(i.location || "")}</span>${i.posted ? `<time>Posted ${fmtDate(i.posted)}</time>` : ""}</div>
-        <h3><a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a></h3>
-        <p class="meta">${esc(bits.join(" · "))}</p>
-        <p class="meta">Via ${esc(i.source_name)}${i.source === "remoteok" ? ' (<a href="https://remoteok.com" target="_blank" rel="noopener">RemoteOK</a>)' : ""}</p>
-        ${tagChips(i)}</li>`;
+      const via = i.source === "remoteok" ? `Via ${extLink("https://remoteok.com", "RemoteOK")}` : `Via ${esc(i.source_name)}`;
+      return `<li class="row">
+        <div>
+          <div class="eyebrow">${esc(i.company)}</div>
+          <h3>${extLink(i.url, esc(i.title))}</h3>
+          <p class="facts">${esc(bits.join(" · "))}</p>
+          ${byline(esc(i.location || ""), i.posted ? `<time>Posted ${fmtDate(i.posted)}</time>` : "", via)}
+          ${tagLine(i)}
+        </div>
+        <div class="side">${extLink(i.url, "Apply").replace("<a ", '<a class="pill" ')}</div>
+      </li>`;
     },
     empty: "Nothing to show yet. Jobs appear only from verified company job boards.",
   },
@@ -139,7 +155,7 @@ function render(name) {
     return;
   }
   const n = state.shown[name];
-  list.innerHTML = rows.slice(0, n).map(VIEWS[name].card).join("") +
+  list.innerHTML = rows.slice(0, n).map((row, idx) => VIEWS[name].card(row, idx)).join("") +
     (rows.length > n ? `<li><button class="more" data-more="${name}">Show more (${rows.length - n} left)</button></li>` : "");
 }
 
@@ -153,6 +169,7 @@ async function load(name) {
     return;
   }
   if (name === "jobs") fillCountries(state.data.jobs);
+  if (name === "news") renderFocus();
   render(name);
 }
 
@@ -177,11 +194,74 @@ function selectTab(name, push = true) {
   load(name);
 }
 
-function renderBrief(brief) {
-  if (!brief?.bullets?.length) return;
-  $("#brief").innerHTML = `<h2>Today's brief</h2><ul>${brief.bullets
-    .map((b) => `<li>${labelBadge(b.label)} ${esc(b.text)} <a href="${esc(b.url)}" target="_blank" rel="noopener">Source</a></li>`)
-    .join("")}</ul>`;
+// ---------- "In focus" band: a featured story plus a scrolling playlist that advances on its own ----------
+const focus = { items: [], index: 0, timer: null, paused: false, dwell: 9000 };
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function focusItems() {
+  const stories = state.data.news || [];
+  const byUrl = new Map(stories.map((s) => [s.url, s]));
+  const picks = (state.meta?.brief?.bullets || []).map((b) => byUrl.get(b.url) || { ...b, summary: b.text }).filter(Boolean);
+  for (const s of stories) {  // top up to 8 with the newest summarized stories
+    if (picks.length >= 8) break;
+    if (s.summary && !picks.some((p) => p.url === s.url)) picks.push(s);
+  }
+  return picks;
+}
+
+function renderFocus() {
+  focus.items = focusItems();
+  const el = $("#focus");
+  if (!focus.items.length) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = `<div class="wrap">
+    <div class="focus-head"><h2>In focus</h2><p>Today's brief, picked from the stories below.</p></div>
+    <div class="focus-grid">
+      <article class="feature" aria-live="polite"></article>
+      <div class="playlist"><p class="playlist-label">Up next</p><ol>${focus.items.map((it, i) => `
+        <li><button type="button" data-focus="${i}">
+          <span class="num">${String(i + 1).padStart(2, "0")}</span>
+          <span>${kicker(it.label)}<span class="t">${esc(it.title)}</span></span>
+        </button></li>`).join("")}</ol></div>
+    </div></div>`;
+  const pause = () => { focus.paused = true; $("#focus .progress span").style.animationPlayState = "paused"; };
+  const resume = () => { if (focus.paused) { focus.paused = false; showFocus(focus.index); } };
+  el.addEventListener("mouseenter", pause);
+  el.addEventListener("mouseleave", resume);
+  el.addEventListener("focusin", pause);
+  el.addEventListener("focusout", (e) => { if (!el.contains(e.relatedTarget)) resume(); });
+  showFocus(0);
+}
+
+function showFocus(i) {
+  focus.index = (i + focus.items.length) % focus.items.length;
+  const it = focus.items[focus.index];
+  const feature = $("#focus .feature");
+  feature.classList.remove("playing");
+  feature.innerHTML = `${kicker(it.label)}
+    <h3>${extLink(it.url, esc(it.title))}</h3>
+    ${it.summary ? `<p class="summary">${esc(it.summary)}</p>` : ""}
+    <div class="feature-actions">
+      ${extLink(it.url, "Read at the source &rarr;").replace("<a ", '<a class="btn" ')}
+      <span class="feature-meta">${[esc(it.source_name || ""), fmtDate(it.date)].filter(Boolean).join(" · ")}</span>
+    </div>
+    <div class="progress" aria-hidden="true"><span></span></div>`;
+  for (const b of document.querySelectorAll("#focus [data-focus]")) {
+    const on = Number(b.dataset.focus) === focus.index;
+    b.setAttribute("aria-current", on);
+    if (on) b.scrollIntoView({ block: "nearest", behavior: reducedMotion ? "auto" : "smooth" });
+  }
+  clearTimeout(focus.timer);
+  if (reducedMotion) return;
+  feature.style.setProperty("--dwell", `${focus.dwell / 1000}s`);
+  void feature.offsetWidth;  // restart the progress animation
+  feature.classList.add("playing");
+  const tick = () => {
+    if (focus.paused) return;  // resume() restarts the timer
+    if (document.hidden || $("#panel-news").hidden) { focus.timer = setTimeout(tick, 1000); return; }
+    showFocus(focus.index + 1);
+  };
+  focus.timer = setTimeout(tick, focus.dwell);
 }
 
 async function init() {
@@ -214,11 +294,13 @@ async function init() {
   if (state.meta.last_run) {
     $("[data-last-run]").textContent = `Last refreshed ${new Date(state.meta.last_run).toLocaleString()}.`;
   }
-  renderBrief(state.meta.brief);
+  $("[data-dateline]").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   document.addEventListener("click", (e) => {
     const more = e.target.closest("[data-more]");
     if (more) { state.shown[more.dataset.more] += PAGE; render(more.dataset.more); }
+    const pick = e.target.closest("[data-focus]");
+    if (pick) showFocus(Number(pick.dataset.focus));
     const tab = e.target.closest('[role="tab"]');
     if (tab) selectTab(tab.id.replace("tab-", ""));
   });

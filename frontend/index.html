@@ -5,82 +5,111 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>HealthSurface</title>
   <meta name="description" content="Health news, funding and jobs, labeled by source type.">
+  <meta name="color-scheme" content="light">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="site-header">
-    <div class="wrap">
-      <h1 class="brand" data-app-name>HealthSurface</h1>
+  <header class="masthead">
+    <div class="wrap masthead-top">
+      <p class="dateline" data-dateline></p>
+      <p class="edition">Reading list, not medical advice</p>
+    </div>
+    <div class="wrap masthead-title">
+      <h1 class="brand"><a href="#news" data-app-name>HealthSurface</a></h1>
       <p class="tagline" data-tagline>Health news, funding and jobs, labeled by source type.</p>
-      <p class="disclaimer" data-disclaimer>This is a reading list, not medical advice.</p>
-      <nav class="tabs" role="tablist" aria-label="Sections">
+    </div>
+    <nav class="sections" aria-label="Sections">
+      <div class="wrap sections-inner" role="tablist">
         <button role="tab" id="tab-news" aria-controls="panel-news" aria-selected="true">News</button>
         <button role="tab" id="tab-funding" aria-controls="panel-funding" aria-selected="false">Funding</button>
         <button role="tab" id="tab-jobs" aria-controls="panel-jobs" aria-selected="false">Jobs</button>
-      </nav>
-    </div>
+        <span class="disclaimer" data-disclaimer>This is a reading list, not medical advice.</span>
+      </div>
+    </nav>
   </header>
 
-  <main class="wrap">
+  <main>
     <section id="panel-news" role="tabpanel" aria-labelledby="tab-news">
-      <div id="brief"></div>
-      <form class="filters" data-for="news">
-        <label>Sector <select name="sector"></select></label>
-        <label>Focus area <select name="focus"></select></label>
-        <label>Source type <select name="label"></select></label>
-        <label class="grow">Search <input name="q" type="search" placeholder="Headline or source"></label>
-      </form>
-      <p class="count" data-count="news"></p>
-      <ol class="list" id="news-list"></ol>
+      <div id="focus" class="focus" hidden></div>
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Latest</h2>
+          <p class="count" data-count="news"></p>
+        </div>
+        <form class="filters" data-for="news">
+          <label>Sector <select name="sector"></select></label>
+          <label>Focus area <select name="focus"></select></label>
+          <label>Source type <select name="label"></select></label>
+          <label class="grow">Search <input name="q" type="search" placeholder="Headline or source"></label>
+        </form>
+        <ol class="list stories" id="news-list"></ol>
+      </div>
     </section>
 
     <section id="panel-funding" role="tabpanel" aria-labelledby="tab-funding" hidden>
-      <form class="filters" data-for="funding">
-        <label>Sector <select name="sector"></select></label>
-        <label>Focus area <select name="focus"></select></label>
-        <label>Round stage <select name="stage"></select></label>
-        <label>Amount <select name="amount">
-          <option value="">Any amount</option>
-          <option value="0-5000000">Under $5M</option>
-          <option value="5000000-25000000">$5M to $25M</option>
-          <option value="25000000-100000000">$25M to $100M</option>
-          <option value="100000000-">$100M and up</option>
-          <option value="unknown">Not disclosed</option>
-        </select></label>
-      </form>
-      <p class="count" data-count="funding"></p>
-      <p class="note">Sources: SEC Form D filings (amount, date and company as filed) and funding announcements found in the News feed. Round and investors are shown only when a source states them.</p>
-      <ol class="list" id="funding-list"></ol>
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Funding</h2>
+          <p class="count" data-count="funding"></p>
+        </div>
+        <p class="dek">Who raised money, from SEC Form D filings (amount, date and company as filed) and funding announcements in the news. A round and its investors appear only when a source states them.</p>
+        <form class="filters" data-for="funding">
+          <label>Sector <select name="sector"></select></label>
+          <label>Focus area <select name="focus"></select></label>
+          <label>Round stage <select name="stage"></select></label>
+          <label>Amount <select name="amount">
+            <option value="">Any amount</option>
+            <option value="0-5000000">Under $5M</option>
+            <option value="5000000-25000000">$5M to $25M</option>
+            <option value="25000000-100000000">$25M to $100M</option>
+            <option value="100000000-">$100M and up</option>
+            <option value="unknown">Not disclosed</option>
+          </select></label>
+        </form>
+        <ol class="list rows" id="funding-list"></ol>
+      </div>
     </section>
 
     <section id="panel-jobs" role="tabpanel" aria-labelledby="tab-jobs" hidden>
-      <form class="filters" data-for="jobs">
-        <label>Function <select name="group"></select></label>
-        <label>Job type <select name="type"></select></label>
-        <label>Employment <select name="employment"></select></label>
-        <label>Sector <select name="sector"></select></label>
-        <label>Focus area <select name="focus"></select></label>
-        <label>Country <select name="country"></select></label>
-        <label>Where <select name="remote">
-          <option value="">Remote or on-site</option>
-          <option value="remote">Remote</option>
-          <option value="onsite">On-site or hybrid</option>
-        </select></label>
-        <label class="grow">Search <input name="q" type="search" placeholder="Title, company or location"></label>
-      </form>
-      <p class="count" data-count="jobs"></p>
-      <ol class="list" id="jobs-list"></ol>
-      <aside class="contract">
-        <h2>Contract and freelance sources</h2>
-        <p>Link-outs only. We do not copy listings from these sites.</p>
-        <ul id="contract-links"></ul>
-      </aside>
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Jobs</h2>
+          <p class="count" data-count="jobs"></p>
+        </div>
+        <p class="dek">Open roles at health companies, straight from their own job boards. Every listing links to the original posting.</p>
+        <form class="filters" data-for="jobs">
+          <label>Function <select name="group"></select></label>
+          <label>Job type <select name="type"></select></label>
+          <label>Employment <select name="employment"></select></label>
+          <label>Sector <select name="sector"></select></label>
+          <label>Focus area <select name="focus"></select></label>
+          <label>Country <select name="country"></select></label>
+          <label>Where <select name="remote">
+            <option value="">Remote or on-site</option>
+            <option value="remote">Remote</option>
+            <option value="onsite">On-site or hybrid</option>
+          </select></label>
+          <label class="grow">Search <input name="q" type="search" placeholder="Title, company or location"></label>
+        </form>
+        <ol class="list rows" id="jobs-list"></ol>
+        <aside class="contract">
+          <h2>Contract and freelance sources</h2>
+          <p>Link-outs only. We do not copy listings from these sites.</p>
+          <ul id="contract-links"></ul>
+        </aside>
+      </div>
     </section>
   </main>
 
-  <footer class="wrap site-footer">
-    <p>Every item links to its original source. Summaries are written in our own words by an AI model and may contain mistakes. Source type describes what kind of source an item is, not how reliable it is.</p>
-    <p data-last-run></p>
+  <footer class="site-footer">
+    <div class="wrap">
+      <p class="footer-brand">HealthSurface</p>
+      <p>Every item links to its original source. Summaries are written in our own words by an AI model and may contain mistakes. Source type describes what kind of source an item is, not how reliable it is.</p>
+      <p data-last-run></p>
+    </div>
   </footer>
 
   <script src="app.js" defer></script>
