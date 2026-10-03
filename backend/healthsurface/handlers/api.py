@@ -1,7 +1,7 @@
 """Read-only JSON API behind CloudFront at /api/*. Filtering happens in the browser."""
 import json
 
-from .. import config, taxonomy
+from .. import config, locations, taxonomy
 from . import store
 
 
@@ -33,5 +33,8 @@ def handler(event, context):
     if path == "funding":
         return _respond({"items": _sorted(store.scan_all(store.funding))})
     if path == "jobs":
-        return _respond({"items": _sorted(store.scan_all(store.jobs), "posted")})
+        rows = store.scan_all(store.jobs)
+        for row in rows:  # derived at read time so parser fixes apply to every stored job
+            row["countries"] = locations.countries_for(row.get("location"))
+        return _respond({"items": _sorted(rows, "posted")})
     return _respond({"error": "not found"}, status=404)

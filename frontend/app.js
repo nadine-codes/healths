@@ -110,7 +110,9 @@ const VIEWS = {
         if (f.employment && i.employment_type !== f.employment) return false;
         if (f.remote === "remote" && !i.remote) return false;
         if (f.remote === "onsite" && i.remote) return false;
-        return matchesQuery(f.q, i.title, i.company, i.location);
+        const countries = i.countries || [];
+        if (f.country === "none" ? countries.length : f.country && !countries.includes(f.country)) return false;
+        return matchesQuery(f.q, i.title, i.company, i.location, ...countries);
       });
     },
     card(i) {
@@ -150,7 +152,19 @@ async function load(name) {
     $(`#${name}-list`).innerHTML = `<li class="empty">Could not load right now. Please try again in a minute.</li>`;
     return;
   }
+  if (name === "jobs") fillCountries(state.data.jobs);
   render(name);
+}
+
+// Country options come from the data, most common first, plus jobs with no stated country.
+function fillCountries(jobs) {
+  const counts = {};
+  for (const j of jobs) for (const c of j.countries || []) counts[c] = (counts[c] || 0) + 1;
+  $('form[data-for="jobs"] select[name="country"]').innerHTML =
+    `<option value="">All countries</option>` +
+    Object.entries(counts).sort((a, b) => b[1] - a[1])
+      .map(([c, n]) => `<option value="${esc(c)}">${esc(c)} (${n})</option>`).join("") +
+    `<option value="none">Not stated (for example "Remote")</option>`;
 }
 
 function selectTab(name, push = true) {
