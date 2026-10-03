@@ -40,10 +40,25 @@ def is_blocked_story(*texts: str) -> bool:
 
 # ---------- prompts ----------
 
+SECTOR_GUIDE = {
+    "Health Tech": "consumer and clinical digital health products, apps, virtual care companies",
+    "Med Tech": "medical devices, diagnostics hardware, implants, imaging, device clearances",
+    "Life Sciences and Biotech": "biology research, genetics, cell and gene therapy, lab science, preprints on disease biology",
+    "Pharma": "drugs and biologics: approvals, generics, trials of medicines, drug pricing",
+    "Supplements and Nutraceuticals": "vitamins, supplements, nutraceutical products",
+    "Peptides": "peptide therapeutics such as GLP-1 drugs",
+    "Health AI": "AI or machine learning built for health care",
+    "Health Data and IT": "EHRs, health data infrastructure, interoperability, cybersecurity (not general statistics)",
+    "Care Delivery and Payers": "hospitals, clinics, insurers, Medicare/Medicaid operations, care access",
+    "Policy and Regulation": "government agency actions, public health announcements, laws, federal funding programs, policy debates",
+}
+
+
 def story_prompt(item: dict) -> str:
+    guide = "\n".join(f"- {name}: {desc}" for name, desc in SECTOR_GUIDE.items())
     return (
-        f"Sectors (pick exactly one): {json.dumps(tx.SECTORS)}\n"
-        f"Focus areas (pick one to three that clearly apply, or the single closest): {json.dumps(tx.FOCUS_AREAS)}\n"
+        f"Sectors (pick exactly one, copied exactly):\n{guide}\n"
+        f"Focus areas (pick zero to three, copied exactly from this list only): {json.dumps(tx.FOCUS_AREAS)}\n"
         f"Round stages: {json.dumps(tx.ROUND_STAGES)}\n\n"
         f"Source: {item.get('source_name')}\nSource type: {item.get('label')}\n"
         f"Headline: {item.get('title')}\nDescription: {(item.get('description') or '')[:1200]}\n\n"

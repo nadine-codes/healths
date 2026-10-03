@@ -226,3 +226,7 @@ def test_spoken_summary_has_intro_and_disclaimer():
     text = classify.spoken_summary({"paragraphs": ["One.", "Two."]}, "Friday, October 2")
     assert text.startswith("Here's your HealthSurface summary for Friday, October 2. One. Two.")
     assert text.endswith("not medical advice.")
+
+
+def test_sector_guide_covers_every_sector():
+    assert list(classify.SECTOR_GUIDE) == tx.SECTORS

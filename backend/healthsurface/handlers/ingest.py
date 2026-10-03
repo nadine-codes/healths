@@ -70,7 +70,7 @@ def ingest_news(report: dict) -> list[dict]:
         row = {k: item[k] for k in STORED_NEWS_FIELDS if item.get(k)}
         row.update(sector=result["sector"], focus_areas=result["focus_areas"], summary=result["summary"],
                    confidence=result["confidence"], classifier=method, is_funding=result["is_funding_announcement"],
-                   ingested_at=now)
+                   ingested_at=now, prompt_v=PROMPT_VERSION)
         rows.append(row)
         if result.get("funding"):
             funding_rows.append(funding_from_story(row, result["funding"]))
@@ -83,6 +83,35 @@ def ingest_news(report: dict) -> list[dict]:
     for s in skipped:
         log.info("skipped %s: %s", s["url"], s["reason"])
     return rows
+
+
+PROMPT_VERSION = 2  # bump when the story prompt changes; the "retag" stage reclassifies older rows
+
+
+def retag_news(report: dict) -> None:
+    """Re-run sector and focus tagging on stored stories classified with an older prompt.
+
+    Feed descriptions are not stored, so a story still in today's feeds is fully reclassified
+    (including a fresh summary); older stories are retagged from the headline and keep their
+    summary. Capped like a normal run.
+    """
+    invoke = _model()
+    if not invoke:
+        return
+    stale = [r for r in store.scan_all(store.news) if r.get("prompt_v") != PROMPT_VERSION]
+    stale = stale[: config.MAX_NEW_STORIES_PER_RUN]
+    live = {i["id"]: i for i in news_src.fetch_all()[0]} if stale else {}
+    for row in stale:
+        item = live.get(row["id"]) or {"title": row["title"], "label": row["label"], "source_name": row["source_name"],
+                                       "description": row.get("journal") or row.get("category") or ""}
+        result, method = classify.classify_story(item, invoke)
+        row["prompt_v"] = PROMPT_VERSION  # a failed retry keeps its tags and is not retried forever
+        if method == "model":
+            row.update(sector=result["sector"], focus_areas=result["focus_areas"], classifier="model")
+            if row["id"] in live:
+                row["summary"] = result["summary"]
+    store.put_many(store.news, stale)
+    report["retag"] = {"stale": len(stale), "live": sum(r["id"] in live for r in stale)}
 
 
 def funding_from_story(story: dict, f: dict) -> dict:
@@ -245,7 +274,7 @@ def ingest_summary(report: dict) -> None:
     report["summary"] = {"items": len(items), "cited": len(summary["sources"]), "dropped": dropped}
 
 
-STAGES = {"news": ingest_news, "funding": ingest_funding, "jobs": ingest_jobs, "brief": ingest_brief,
+STAGES = {"news": ingest_news, "retag": retag_news, "funding": ingest_funding, "jobs": ingest_jobs, "brief": ingest_brief,
           "summary": ingest_summary}
 
 
