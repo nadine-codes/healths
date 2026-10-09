@@ -6,11 +6,13 @@ SEC fair-access rules: at most 10 requests per second with an identifying User-A
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 import urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import date, timedelta
+from pathlib import Path
 
 from .. import classify, config
 from . import http
@@ -120,3 +122,19 @@ def fetch_new(existing_ids: set[str], limit: int = 120) -> list[dict]:
         if rec:
             records.append(rec)
     return records
+
+
+# Rounds announced before a Form D shows up, entered by hand in announced_rounds.json. Wire services
+# (PR Newswire, Business Wire, GlobeNewswire) don't permit automated reuse, so each entry is checked
+# by a person and links to the company's own announcement. Only facts the linked page states go in.
+ANNOUNCED_KIND = "Company announcement"
+ANNOUNCED_PATH = Path(__file__).resolve().parent.parent / "announced_rounds.json"
+
+
+def _slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def announced_rounds() -> list[dict]:
+    return [{**r, "id": f"announced#{_slug(r['company'])}#{r['date']}", "source_kind": ANNOUNCED_KIND}
+            for r in json.loads(ANNOUNCED_PATH.read_text())]

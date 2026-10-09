@@ -117,7 +117,9 @@ An "Ask what's new" chat, opened from the floating logo button at the bottom rig
 | CDC Newsroom RSS (tools.cdc.gov) | Agency press releases | Press release | US government work, public domain. Feed links go through a download redirect, which is resolved to the cdc.gov page. |
 | NIH RePORTER API | SBIR and STTR small business research grants | n/a (Funding, round "Grant") | US government data, public domain. Amount, date, awardee and NIH institute, linked to the RePORTER project page. |
 | PR Newswire | n/a | n/a | **Not used.** Its [terms](https://www.prnewswire.com/terms-of-use/) ban robots and republishing without written permission. |
-| Business Wire, GlobeNewswire | n/a | n/a | Not used yet. We could not confirm terms that clearly allow this use. |
+| Business Wire | n/a | n/a | **Not used.** Its [terms](https://www.businesswire.com/terms-of-use) limit the site to reading releases and retrieving feeds and bar commercial activity and aggregating its content without written consent. It also blocks automated requests. |
+| GlobeNewswire | n/a | n/a | **Not used.** It publishes no terms for reusing its feeds; republishing goes through partner agreements. |
+| Company announcements (`announced_rounds.json`) | Funding rounds announced before a Form D appears | n/a (Funding, "Company announcement") | Entered and checked by hand, linked to the company's own announcement page. Only facts (company, amount, round, date, investors) that the linked page states; no text is copied. No automated fetching. |
 | SBIR.gov API | n/a | n/a | Returns 403 to our requests. NIH RePORTER covers the HHS share of these awards. |
 | MedCity News RSS | n/a | n/a | **Disabled.** Its [terms of service](https://medcitynews.com/medcitizen-terms-of-service/) prohibit robots or automated access, republishing, and commercial use without written consent. All stored MedCity items were deleted. |
 | BioPharma Dive, Healthcare Dive, Fierce Healthcare RSS | n/a | n/a | **Disabled.** They block AWS IPs, and their terms were not cleared for this use. |

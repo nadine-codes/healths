@@ -79,3 +79,15 @@ def test_kff_health_news_is_never_a_source():
     from healthsurface import config
     blob = repr(config.NEWS_SOURCES).lower() + repr(list(news.FETCHERS)).lower()
     assert "kff" not in blob
+
+
+def test_announced_rounds_are_valid():
+    from healthsurface import taxonomy
+    t = taxonomy.as_dict()
+    rows = funding.announced_rounds()
+    assert len({r["id"] for r in rows}) == len(rows)
+    for r in rows:
+        assert r["source_kind"] == "Company announcement"
+        assert r["source_url"].startswith("https://") and r["company"] and r["date"][:2] == "20"
+        assert isinstance(r["amount_usd"], int) and r["amount_usd"] > 0
+        assert r["sector"] in t["sectors"] and r["round_stage"] in t["round_stages"]

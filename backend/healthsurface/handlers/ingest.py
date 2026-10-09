@@ -137,8 +137,9 @@ def ingest_funding(report: dict) -> None:
     except Exception as err:  # noqa: BLE001 - grants are additive; Form D still lands
         log.warning("NIH RePORTER failed: %s", err)
         grants = []
-    store.put_many(store.funding, rows + grants)
-    report["funding"] = {"form_d_new": len(rows), "nih_grants_new": len(grants)}
+    announced = funding_src.announced_rounds()
+    store.put_many(store.funding, rows + grants + announced)
+    report["funding"] = {"form_d_new": len(rows), "nih_grants_new": len(grants), "announced": len(announced)}
 
 
 JOB_FIELDS = ("id", "company", "title", "url", "location", "remote", "posted", "source", "source_name",
@@ -149,7 +150,8 @@ def _discover_companies(report: dict) -> list[dict]:
     """Verify job boards for companies that appeared in news funding announcements."""
     state = store.get_meta("job_companies") or {"verified": [], "tried": []}
     known = {c["name"].lower() for c in jobs_src.COMPANIES + state["verified"]} | set(state["tried"])
-    candidates = {r["company"]: r for r in store.scan_all(store.funding) if r.get("source_kind") == "News story"}
+    candidates = {r["company"]: r for r in store.scan_all(store.funding)
+                  if r.get("source_kind") in ("News story", funding_src.ANNOUNCED_KIND)}
     added = []
     for name, rec in list(candidates.items())[:20]:
         if name.lower() in known:

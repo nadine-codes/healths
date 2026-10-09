@@ -1,0 +1,14 @@
+[
+ {
+  "company": "Vitalize",
+  "amount_usd": 31000000,
+  "round_stage": "Series A",
+  "date": "2026-10-06",
+  "investors": ["Oak HC/FT", "Norwest Ventures", "Y Combinator", ".406 Ventures", "Constellation Ventures", "MemorialCare Innovation Fund"],
+  "source_url": "https://vitalize.care/blog/vitalize-series-a",
+  "source_name": "Vitalize blog",
+  "state": "San Francisco, CA",
+  "sector": "Health AI",
+  "focus_areas": []
+ }
+]

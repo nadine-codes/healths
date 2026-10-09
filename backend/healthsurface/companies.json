@@ -340,5 +340,13 @@
   "provider": "greenhouse",
   "token": "natera",
   "jobs_at_verify": 198
+ },
+ {
+  "name": "Vitalize",
+  "sector": "Health AI",
+  "focus_areas": [],
+  "provider": "ashby",
+  "token": "vitalize",
+  "jobs_at_verify": 18
  }
 ]
