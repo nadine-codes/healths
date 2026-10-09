@@ -32,6 +32,17 @@ Parameters:
     Default: "false"
     AllowedValues: ["true", "false"]
     Description: Default for the Ask kill switch. The meta item ask_settings overrides it without a deploy.
+  SiteDomain:
+    Type: String
+    Default: ""
+    Description: Custom domain served alongside the cloudfront.net URL, e.g. www.healthsurface.com.
+  SiteCertificateArn:
+    Type: String
+    Default: ""
+    Description: ACM certificate in us-east-1 covering SiteDomain (DNS-validated at GoDaddy).
+
+Conditions:
+  HasSiteDomain: !Not [!Equals [!Ref SiteDomain, ""]]
 
 Globals:
   Function:
@@ -265,6 +276,11 @@ Resources:
         DefaultRootObject: index.html
         HttpVersion: http2
         PriceClass: PriceClass_100
+        Aliases: !If [HasSiteDomain, [!Ref SiteDomain], !Ref AWS::NoValue]
+        ViewerCertificate: !If
+          - HasSiteDomain
+          - { AcmCertificateArn: !Ref SiteCertificateArn, SslSupportMethod: sni-only, MinimumProtocolVersion: TLSv1.2_2021 }
+          - !Ref AWS::NoValue
         Origins:
           - Id: site
             DomainName: !GetAtt SiteBucket.RegionalDomainName
