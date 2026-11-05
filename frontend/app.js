@@ -171,11 +171,17 @@ function render(name) {
   }
 }
 
+// One request per list, shared by the tabs and the ticker. A failed request can be retried.
+const requests = {};
+const fetchItems = (name) => requests[name] ??= getJSON(`/api/${name}`)
+  .then((d) => d.items || [])
+  .catch((err) => { delete requests[name]; throw err; });
+
 async function load(name) {
   if (state.data[name]) return render(name);
   $(`#${name}-list`).innerHTML = `<li class="empty">Loading…</li>`;
   try {
-    state.data[name] = (await getJSON(`/api/${name}`)).items || [];
+    state.data[name] = await fetchItems(name);
   } catch (err) {
     $(`#${name}-list`).innerHTML = `<li class="empty">Could not load right now. Please try again in a minute.</li>`;
     return;
@@ -221,6 +227,37 @@ function selectTab(name, push = true) {
   }
   if (push) history.replaceState(null, "", `#${name}`);
   load(name);
+}
+
+// ---------- Ticker: latest funding and headlines, each linking to its source ----------
+const TICKER_EACH = 8;
+const TICKER_MIN_AMOUNT = 1e6;  // leaves out placeholder Form D amounts such as $1
+const TICKER_LABELS = new Set(["Reported news", "Press release", "Regulatory action"]);  // titles that read as headlines
+const TICKER_PX_PER_SECOND = 50;
+
+function tickerItems(news, funding) {
+  const seen = new Set();
+  const rounds = funding.filter((i) => {
+    if (!(i.amount_usd >= TICKER_MIN_AMOUNT) || seen.has(i.company)) return false;
+    seen.add(i.company);
+    return true;
+  }).slice(0, TICKER_EACH).map((i) => ({ tag: "Funding", text: `${i.company} ${fmtMoney(i.amount_usd)} · ${i.source_kind}`, url: i.source_url }));
+  const headlines = news.filter((i) => TICKER_LABELS.has(i.label)).slice(0, TICKER_EACH)
+    .map((i) => ({ tag: i.label, text: i.title, url: i.url }));
+  return Array.from({ length: Math.max(rounds.length, headlines.length) }, (_, n) => [rounds[n], headlines[n]]).flat().filter(Boolean);
+}
+
+async function renderTicker() {
+  const results = await Promise.allSettled([fetchItems("news"), fetchItems("funding")]);
+  const [news, funding] = results.map((r) => (r.status === "fulfilled" ? r.value : []));
+  const items = tickerItems(news, funding);
+  if (!items.length) return;
+  const links = (tabindex) => items.map((i) => `<li><a href="${esc(i.url)}" target="_blank" rel="noopener"${tabindex}><span class="ticker-tag">${esc(i.tag)}</span>${esc(i.text)}</a></li>`).join("");
+  // The second copy makes the loop seamless, so it stays out of the keyboard and screen reader order.
+  const track = $("[data-ticker-track]");
+  track.innerHTML = `<ul class="ticker-list">${links("")}</ul><ul class="ticker-list" aria-hidden="true">${links(' tabindex="-1"')}</ul>`;
+  $(".ticker").hidden = false;
+  track.style.animationDuration = `${track.scrollWidth / 2 / TICKER_PX_PER_SECOND}s`;
 }
 
 // ---------- "In focus" band: a featured story plus a scrolling playlist that advances on its own ----------
@@ -437,9 +474,16 @@ async function init() {
     if (pick) showFocus(Number(pick.dataset.focus));
     const tab = e.target.closest('[role="tab"]');
     if (tab) selectTab(tab.id.replace("tab-", ""));
+    const toggle = e.target.closest("[data-ticker-toggle]");
+    if (toggle) {
+      const paused = $(".ticker").classList.toggle("paused");
+      toggle.textContent = paused ? "Play" : "Pause";
+      toggle.setAttribute("aria-pressed", paused);
+    }
   });
   const start = location.hash.slice(1);
   selectTab(VIEWS[start] ? start : "news", false);
+  renderTicker();
 }
 
 init();

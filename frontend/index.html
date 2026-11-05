@@ -19,16 +19,17 @@
 </head>
 <body>
   <header class="masthead">
-    <div class="wrap masthead-top">
-      <p class="dateline" data-dateline></p>
-      <p class="edition">Reading list, not medical advice</p>
-    </div>
+    <section class="ticker" aria-label="Latest funding and headlines" hidden>
+      <button type="button" class="ticker-toggle" data-ticker-toggle aria-pressed="false">Pause</button>
+      <div class="ticker-view"><div class="ticker-track" data-ticker-track></div></div>
+    </section>
     <div class="wrap masthead-title">
       <h1 class="brand"><a href="#news" data-app-name>HealthSurface</a></h1>
       <p class="tagline" data-tagline>Health news, funding and jobs, labeled by source type.</p>
     </div>
     <nav class="sections" aria-label="Sections">
       <div class="wrap sections-inner">
+        <p class="dateline" data-dateline></p>
         <div class="tabs" role="tablist">
           <button role="tab" id="tab-news" aria-controls="panel-news" aria-selected="true">News</button>
           <button role="tab" id="tab-funding" aria-controls="panel-funding" aria-selected="false">Funding</button>
