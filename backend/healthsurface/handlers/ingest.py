@@ -172,7 +172,7 @@ MAX_JOB_ATTEMPTS = 3  # a job the model keeps failing on keeps its keyword tags 
 def ingest_jobs(report: dict) -> None:
     extra = _discover_companies(report)
     fetched, report["job_sources"], boards_ok = jobs_src.fetch_all(extra)
-    existing = {r["id"]: r for r in store.scan_all(store.jobs, "id, classifier, job_type, attempts")}
+    existing = {r["id"]: r for r in store.scan_all(store.jobs, "id, classifier, job_type, seniority, attempts")}
     fetched = list({j["id"]: j for j in fetched}.values())
     new = [j for j in fetched if j["id"] not in existing]
 
@@ -195,6 +195,8 @@ def ingest_jobs(report: dict) -> None:
         if method != classify.JOB_CLASSIFIER:  # model failed (throttled or bad reply): count it
             row["attempts"] = existing.get(job["id"], {}).get("attempts", 0) + 1
         rows.append(row)
+    refreshed = refresh_rule_rows(fetched, existing, model_ids)
+    rows += refreshed
     store.put_many(store.jobs, rows)
 
     # Remove postings that closed: anything stored from a board that loaded but no longer lists it.
@@ -202,7 +204,24 @@ def ingest_jobs(report: dict) -> None:
     closed = [i for i in existing if i not in live and any(i.startswith(p) for p in boards_ok)]
     store.delete_many(store.jobs, closed)
     report["jobs"] = {"fetched": len(fetched), "new": len(new), "stored": len(rows), "model": len(to_model),
-                      "closed_removed": len(closed)}
+                      "rules_refreshed": len(refreshed), "closed_removed": len(closed)}
+
+
+def refresh_rule_rows(fetched: list, existing: dict, skip: set) -> list:
+    """Keyword-only rows the model gave up on follow the current keyword rules.
+    Free (no model calls); a row is rewritten only when its tags change."""
+    rows = []
+    for job in fetched:
+        old = existing.get(job["id"])
+        if (not old or job["id"] in skip or old.get("classifier") != "rules"
+                or old.get("attempts", 0) < MAX_JOB_ATTEMPTS):
+            continue
+        result = classify.rule_classify_job(job)
+        if result["job_type"] != old.get("job_type") or result["seniority"] != old.get("seniority"):
+            row = {k: job[k] for k in JOB_FIELDS if job.get(k) not in (None, "")}
+            row.update(result, classifier="rules", attempts=old["attempts"])
+            rows.append(row)
+    return rows
 
 
 def ingest_brief(report: dict) -> None:
