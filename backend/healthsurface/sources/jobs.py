@@ -141,6 +141,11 @@ def verify_company(name: str, sector: str | None, focus: list[str]) -> dict | No
     return None
 
 
+def board_prefixes(extra_companies: list[dict]) -> set[str]:
+    """Id prefixes of every board we currently read from."""
+    return {f"{c['provider']}#{c['token']}#" for c in COMPANIES + extra_companies} | {"remoteok#"}
+
+
 def fetch_all(extra_companies: list[dict]) -> tuple[list[dict], dict, set[str]]:
     """Returns (jobs, report, boards_ok) where boards_ok are 'provider#token' prefixes that loaded."""
     companies = COMPANIES + extra_companies

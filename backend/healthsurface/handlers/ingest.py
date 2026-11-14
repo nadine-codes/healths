@@ -199,12 +199,30 @@ def ingest_jobs(report: dict) -> None:
     rows += refreshed
     store.put_many(store.jobs, rows)
 
-    # Remove postings that closed: anything stored from a board that loaded but no longer lists it.
-    live = {j["id"] for j in fetched}
-    closed = [i for i in existing if i not in live and any(i.startswith(p) for p in boards_ok)]
+    configured = jobs_src.board_prefixes(extra)
+    failures = board_failures(store.get_meta("board_failures") or {}, configured, boards_ok)
+    store.put_meta("board_failures", failures)
+    closed = closed_job_ids(existing, {j["id"] for j in fetched}, boards_ok, configured, failures)
     store.delete_many(store.jobs, closed)
     report["jobs"] = {"fetched": len(fetched), "new": len(new), "stored": len(rows), "model": len(to_model),
                       "rules_refreshed": len(refreshed), "closed_removed": len(closed)}
+
+
+MAX_BOARD_FAILURES = 6  # three days of twice-daily runs
+
+
+def board_failures(previous: dict, configured: set, boards_ok: set) -> dict:
+    """Consecutive failed runs per configured board; a board that loads resets to 0."""
+    return {p: 0 if p in boards_ok else int(previous.get(p, 0)) + 1 for p in configured if p != "id"}
+
+
+def closed_job_ids(existing: dict, live: set, boards_ok: set, configured: set, failures: dict) -> list:
+    """Stored jobs to remove: gone from a board that loaded, from a board that has failed
+    MAX_BOARD_FAILURES runs in a row, or from a board we no longer read (a company that moved boards)."""
+    dead = {p for p, n in failures.items() if n >= MAX_BOARD_FAILURES}
+    def board(i):
+        return next((p for p in configured if i.startswith(p)), None)
+    return [i for i in existing if i not in live and (board(i) is None or board(i) in boards_ok | dead)]
 
 
 def refresh_rule_rows(fetched: list, existing: dict, skip: set) -> list:
