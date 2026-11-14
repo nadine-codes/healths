@@ -361,3 +361,49 @@ def test_validate_job_unwraps_single_item_lists():
     out = classify.validate_job({"job_type": ["Product Marketing", "Sales"], "employment_type": ["Full-time"],
                                  "seniority": ["Director"]})
     assert out["job_type"] == "Product Marketing" and out["employment_type"] == "Full-time"
+
+
+@pytest.mark.parametrize("title,level", [
+    ("Staff Machine Learning Scientist", "Lead"),
+    ("Principal Software Engineer", "Lead"),
+    ("Product Marketing Lead, Payor", "Lead"),
+    ("Chief of Staff", "Lead"),
+    ("Staff Nurse, ICU", None),
+    ("Staff Accountant", None),
+    ("Sr. Product Designer", "Senior"),
+    ("Senior Software Engineer", "Senior"),
+    ("Software Engineer III", "Senior"),
+    ("Software Engineer II", "Mid"),
+    ("Data Analyst I", "Entry"),
+    ("Associate Product Manager", "Entry"),
+    ("Junior Designer", "Entry"),
+    ("Summer Engineering Intern", "Intern"),
+    ("Internal Medicine Physician", None),
+    ("International Sales Representative", None),
+    ("Product Manager", None),
+    ("Account Manager - Longevity", None),
+    ("Customer Success Manager", None),
+    ("Senior Product Manager", "Senior"),
+    ("Engineering Manager", "Manager"),
+    ("Manager, Growth", "Manager"),
+    ("Senior Manager, Talent Operations", "Manager"),
+    ("Associate Director, Clinical Operations", "Director"),
+    ("Sr. Director of Machine Learning", "Director"),
+    ("VP of Engineering", "Executive"),
+    ("Head of Product", "Executive"),
+    ("Chief Medical Officer", "Executive"),
+    ("Software Engineer", None),
+    ("Member of Product Staff, Core Product", None),
+    ("Senior Member of Technical Staff", "Senior"),
+    ("Senior Manager, Office of the President", "Manager"),
+    ("Supervisor, Clinical Laboratory", "Manager"),
+    ("Director of International Product", "Director"),
+])
+def test_title_seniority(title, level):
+    assert classify.title_seniority(title) == level
+
+
+def test_title_level_beats_model_seniority():
+    raw = {"job_type": "AI Engineer", "employment_type": "Full-time", "seniority": "Mid"}
+    assert classify.validate_job(raw, "Staff Machine Learning Scientist")["seniority"] == "Lead"
+    assert classify.validate_job(raw, "Machine Learning Scientist")["seniority"] == "Mid"

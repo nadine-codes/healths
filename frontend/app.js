@@ -122,6 +122,7 @@ const VIEWS = {
         if (f.group && i.function_group !== f.group) return false;
         if (f.type && i.job_type !== f.type) return false;
         if (f.employment && i.employment_type !== f.employment) return false;
+        if (f.seniority && i.seniority !== f.seniority) return false;
         if (f.remote === "remote" && !i.remote) return false;
         if (f.remote === "onsite" && i.remote) return false;
         const countries = i.countries || [];
@@ -435,7 +436,7 @@ async function init() {
   try {
     state.meta = await getJSON("/api/meta");
   } catch {
-    state.meta = { taxonomy: { sectors: [], focus_areas: [], evidence_labels: {}, round_stages: [], function_groups: {}, employment_types: [] } };
+    state.meta = { taxonomy: { sectors: [], focus_areas: [], evidence_labels: {}, round_stages: [], function_groups: {}, employment_types: [], seniority: [] } };
   }
   const t = state.meta.taxonomy;
   if (state.meta.app) {
@@ -452,6 +453,7 @@ async function init() {
     if (form.group) fillSelect(form.group, Object.keys(t.function_groups), "All functions");
     if (form.type) fillSelect(form.type, [...Object.values(t.function_groups).flat(), "Other"], "All job types");
     if (form.employment) fillSelect(form.employment, t.employment_types, "Any type");
+    if (form.seniority) fillSelect(form.seniority, t.seniority || [], "Any level");
     const name = form.dataset.for;
     form.addEventListener("input", () => { state.shown[name] = PAGE; render(name); });
     form.addEventListener("submit", (e) => e.preventDefault());

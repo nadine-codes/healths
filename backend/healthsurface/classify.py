@@ -95,7 +95,10 @@ JOB_GUIDE = (
     "- UX Engineer: builds interfaces with design craft, including UX engineers, design engineers and design "
     "technologists. UI Engineer: front-end and mobile engineers.\n"
     "- Software Engineer: general software, including automation and engineering leadership. "
-    "AI Engineer: machine learning and AI only."
+    "AI Engineer: machine learning and AI only.\n"
+    "Seniority: Staff, Principal and Lead are Lead, above Senior. Manager means people manager; a Product, "
+    "Account or Customer Success Manager with no other level is Mid. Director includes Associate Director. "
+    "VP, Head of and Chief are Executive. With no level in the title, judge from the posting; default to Mid."
 )
 
 
@@ -186,7 +189,8 @@ def validate_job(raw: dict, title: str = "") -> dict:
     emp = raw.get("employment_type")
     if emp not in tx.EMPLOYMENT_TYPES:
         raise ValueError(f"bad employment type: {emp!r}")
-    seniority = raw.get("seniority") if raw.get("seniority") in tx.SENIORITY else None
+    # A level named in the title (Staff, Senior, Director...) beats the model's guess.
+    seniority = title_seniority(title) or (raw.get("seniority") if raw.get("seniority") in tx.SENIORITY else None)
     return {
         "job_type": job_type,
         "function_group": tx.function_group_for(job_type),
@@ -315,6 +319,34 @@ JOB_TYPE_KEYWORDS = [
 ]
 
 
+# "Manager" in these titles names the role, not a people-manager level.
+_IC_MANAGER = (r"(product|project|program|account|accounts|success|territory|case|care|community|office|partner|"
+               r"partnerships|channel|study|social media|brand|content|marketing|campaign|growth|lifecycle|"
+               r"practice|clinic|nurse|benefits|payroll|implementation|engagement|relationship|population health)"
+               r"\s+manager")
+# "Staff" before these is a plain job title (staff nurse, staff accountant), not the Staff level.
+_STAFF_ROLE = (r"nurse|rn|lpn|accountant|pharmacist|physician|therapist|psychiatrist|psychologist|clinician|"
+               r"counsel|attorney|provider|dietitian|midwife|writer")
+SENIORITY_RULES = [  # first match wins
+    ("Intern", r"\bintern(s|ship)?\b|\bco-?op\b"),
+    ("Lead", r"chief of staff"),
+    ("Executive", r"\bchief\b|\b(s|e)?vp\b|vice president|head of|\bc[eotfm]o\b|(?<!the )\bpresident\b|general manager"),
+    ("Director", r"\bdirector\b"),
+    ("Manager", rf"^(?!.*{_IC_MANAGER}).*\bmanager\b|\bsupervisor\b"),
+    ("Lead", rf"\bstaff\b(?!\s+({_STAFF_ROLE})\b)|\bprincipal\b|\blead\b|\bdistinguished\b|\bfellow\b"),
+    ("Senior", r"\bsenior\b|\bsr\b|\biii\b|\biv\b|\blevel (3|4)\b"),
+    ("Entry", r"\bjunior\b|\bjr\b|\bentry\b|\bnew grad|\bgraduate\b|\bassociate\b|\bapprentice\b|\b(engineer|analyst|scientist|designer|developer|specialist|representative|coordinator|technician) i\b|\blevel 1\b"),
+    ("Mid", r"\bii\b|\bmid[- ]level\b|\bintermediate\b|\blevel 2\b"),
+]
+
+
+def title_seniority(title: str) -> Optional[str]:
+    """The level a job title names outright, or None when the title doesn't say."""
+    t = (title or "").replace(".", " ")
+    t = re.sub(r"member of [\w ]*staff", " ", t, flags=re.I)  # a generic title, not the Staff level
+    return next((level for level, rx in SENIORITY_RULES if re.search(rx, t, re.I)), None)
+
+
 def rule_classify_job(job: dict) -> dict:
     title = job.get("title", "")
     job_type = next((t for t, rx in JOB_TYPE_KEYWORDS if re.search(rx, title, re.I)), "Other")
@@ -329,12 +361,7 @@ def rule_classify_job(job: dict) -> dict:
         emp = "Part-time"
     else:
         emp = "Full-time"
-    seniority_rules = [
-        ("Intern", r"intern"), ("Executive", r"chief|\bvp\b|vice president|head of"),
-        ("Director", r"director"), ("Manager", r"manager"), ("Lead", r"lead|principal|staff"),
-        ("Senior", r"senior|\bsr\.?\b|\biii\b"), ("Entry", r"junior|\bjr\.?\b|associate|entry|\bi\b"),
-    ]
-    seniority = next((s for s, rx in seniority_rules if re.search(rx, title, re.I)), "Mid")
+    seniority = title_seniority(title) or "Mid"
     return {"job_type": job_type, "function_group": tx.function_group_for(job_type),
             "employment_type": emp, "seniority": seniority}
 
