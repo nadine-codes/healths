@@ -88,13 +88,18 @@ JOB_GUIDE = (
     "- Clinical Operations: running clinical trials or clinical programs without treating patients.\n"
     "- Medical Affairs and Science: scientists, medical science liaisons, health economics and outcomes research.\n"
     "- Product Marketing: positioning and launching products. Product Manager: deciding what to build.\n"
-    "- Marketing Designer: designs for marketing and growth. UX/UI Product Designer: designs the product.\n"
+    "- Product Designer: titled product designer; owns the product experience end to end. UX/UI Designer: titled "
+    "UX, UI or interaction designer. Marketing Designer: designs for marketing and growth.\n"
+    "- Product Engineer: engineers titled product engineer, who build features and help decide what to build. "
+    "Product Builder: titled product builder.\n"
+    "- UX Engineer: builds interfaces with design craft, including UX engineers, design engineers and design "
+    "technologists. UI Engineer: front-end and mobile engineers.\n"
     "- Software Engineer: general software, including automation and engineering leadership. "
     "AI Engineer: machine learning and AI only."
 )
 
 
-JOB_CLASSIFIER = "model3"  # bump with JOB_GUIDE changes; stored jobs from older versions are retagged
+JOB_CLASSIFIER = "model4"  # bump with JOB_GUIDE changes; stored jobs from older versions are retagged
 
 
 def job_prompt(job: dict) -> str:
@@ -266,8 +271,12 @@ JOB_TYPE_KEYWORDS = [
     ("Regulatory and Quality", r"regulatory|quality assurance specialist|\bqms\b"),
     ("Project or Program Manager", r"program manager|project manager|\btpm\b"),
     ("Operations and Strategy", r"revenue cycle"),
+    ("UX Engineer", r"ux engineer|design engineer|design technologist"),
+    ("Product Builder", r"product builder"),
+    ("Product Engineer", r"product engineer"),
     ("UX Researcher", r"ux research|user research"),
-    ("UX/UI Product Designer", r"product design|\bux\b|ui designer|interaction design|design technologist"),
+    ("Product Designer", r"product design"),
+    ("UX/UI Designer", r"\bux\b|\bui\b.*designer|interaction design"),
     ("Brand Designer", r"brand design"),
     ("Graphic Designer", r"graphic design|visual design"),
     ("Marketing Designer", r"marketing design|creative design|growth/digital designer|digital designer"),

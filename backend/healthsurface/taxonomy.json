@@ -52,8 +52,8 @@
     "Grant"
   ],
   "function_groups": {
-    "Design": ["UX/UI Product Designer", "Brand Designer", "Graphic Designer", "Marketing Designer", "UX Researcher"],
-    "Engineering": ["Software Engineer", "UI Engineer", "AI Engineer", "Data and Analytics", "DevOps and Security", "QA and Test"],
+    "Design": ["Product Designer", "UX/UI Designer", "Brand Designer", "Graphic Designer", "Marketing Designer", "UX Researcher"],
+    "Engineering": ["Software Engineer", "Product Engineer", "Product Builder", "UI Engineer", "UX Engineer", "AI Engineer", "Data and Analytics", "DevOps and Security", "QA and Test"],
     "Product": ["Product Manager", "Project or Program Manager"],
     "Marketing and Content": ["Growth and Lifecycle Marketing", "Product Marketing", "Content and Editorial", "Social Media and Community", "PR and Communications"],
     "Sales and Customer": ["Sales", "Account Manager", "Customer Success Manager", "Implementation and Onboarding", "Customer Support", "Partnerships and Business Development", "Solutions and Sales Engineering"],

@@ -22,7 +22,7 @@ GOLD = {
     "Senior Technical Recruiter": ["People and Recruiting"],
     "Account Executive - Central": ["Sales", "Account Manager"],
     "Director, Product Marketing": ["Product Marketing"],
-    "Senior Product Designer": ["UX/UI Product Designer"],
+    "Senior Product Designer": ["Product Designer"],
     "Senior Analyst, SIU Investigator": ["Legal and Compliance"],
     "Strategic Account Executive Lodging": ["Sales", "Account Manager"],
     "Territory Manager (TX, Fort Bend)": ["Sales"],
@@ -39,7 +39,7 @@ GOLD = {
     "Senior/Staff Platform Engineer": ["DevOps and Security", "Software Engineer"],
     "Senior Manager, Revenue Cycle Management, Provider Operations": ["Operations and Strategy", "Finance and Accounting"],
     "Women's Mental Health Specialist (LCSW/LPC) | CO License": ["Clinical Product Specialist"],
-    "Design Technologist": ["UX/UI Product Designer", "UI Engineer"],
+    "Design Technologist": ["UX Engineer", "UI Engineer"],
     "Account Manager - Longevity": ["Account Manager"],
     "Account Sales Representative": ["Sales"],
     "Analytics Engineering Lead": ["Data and Analytics"],
@@ -59,7 +59,11 @@ GOLD = {
     "Payroll & Equity Associate": ["Finance and Accounting", "People and Recruiting"],
     "Senior Health Economics and Outcomes Scientist": ["Medical Affairs and Science"],
     "Manager, Governance Risk & Compliance (GRC)": ["Legal and Compliance", "DevOps and Security"],
-    "Growth/Digital Designer": ["Marketing Designer", "UX/UI Product Designer"],
+    "Growth/Digital Designer": ["Marketing Designer", "Product Designer"],
+    "Senior Product Engineer": ["Product Engineer"],
+    "Product Builder": ["Product Builder"],
+    "Senior UX Engineer": ["UX Engineer"],
+    "Senior UX/UI Designer": ["UX/UI Designer"],
 }
 
 

@@ -21,7 +21,7 @@ One free reading list with three tabs that share the same Sector and Focus area 
 
 - **News:** 160 stories from openFDA, medRxiv, PubMed, The Conversation, and the CMS and CDC newsrooms. Every story carries a **Source type** label: Press release, Preprint, Peer-reviewed study, Regulatory action or Reported news, with a tooltip saying what each one means. A daily "In focus" brief picks the top stories.
 - **Funding:** 174 records from SEC Form D filings and NIH small business research grants. Amounts come from the filings themselves. A round or investor is shown only when a source states it.
-- **Jobs:** 1,460 open roles at 69 health companies, from verified company job boards (Greenhouse, Lever, Ashby) and Remote OK. Filter by function, 36 job types, employment type, country and remote.
+- **Jobs:** 1,460 open roles at 69 health companies, from verified company job boards (Greenhouse, Lever, Ashby) and Remote OK. Filter by function, 40 job types, employment type, country and remote.
 
 - **Ask what's new:** a question box that answers only from the stored stories, filings and job posts, lists its sources with their Source type, and refuses "should I" questions with a pointer to what recent stories report. Questions are never stored or logged.
 

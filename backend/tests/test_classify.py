@@ -21,7 +21,7 @@ def test_taxonomy_sizes_match_brief():
     assert len(tx.SECTORS) == 10
     assert len(tx.FOCUS_AREAS) == 20
     assert list(tx.EVIDENCE_LABELS) == ["Press release", "Preprint", "Peer-reviewed study", "Regulatory action", "Reported news"]
-    assert len(tx.JOB_TYPES) == 37  # the 36 listed types plus Other
+    assert len(tx.JOB_TYPES) == 41  # the 40 listed types plus Other
 
 
 def test_validate_story_accepts_good_reply():
@@ -90,7 +90,12 @@ class TestVerifyFunding:
 
 @pytest.mark.parametrize("title,job_type,emp", [
     ("Senior Software Engineer, Backend", "Software Engineer", "Full-time"),
-    ("Product Designer (Contract)", "UX/UI Product Designer", "Contract"),
+    ("Product Designer (Contract)", "Product Designer", "Contract"),
+    ("Senior UX/UI Designer", "UX/UI Designer", "Full-time"),
+    ("Senior Product Engineer", "Product Engineer", "Full-time"),
+    ("AI Product Builder", "Product Builder", "Full-time"),
+    ("UX Engineer", "UX Engineer", "Full-time"),
+    ("Design Technologist", "UX Engineer", "Full-time"),
     ("Registered Nurse, Per Diem", "Clinical Product Specialist", "Part-time"),
     ("Summer Data Science Intern", "Data and Analytics", "Internship"),
     ("Customer Success Manager", "Customer Success Manager", "Full-time"),
