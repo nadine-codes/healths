@@ -407,3 +407,15 @@ def test_title_level_beats_model_seniority():
     raw = {"job_type": "AI Engineer", "employment_type": "Full-time", "seniority": "Mid"}
     assert classify.validate_job(raw, "Staff Machine Learning Scientist")["seniority"] == "Lead"
     assert classify.validate_job(raw, "Machine Learning Scientist")["seniority"] == "Mid"
+
+
+@pytest.mark.parametrize("title,model_type,want", [
+    ("Staff Industrial Designer", "Product Designer", "Other"),
+    ("Director of Engineering, Eligibility", "Product Engineer", "Software Engineer"),
+    ("Senior Product Designer", "Product Designer", "Product Designer"),
+    ("Head of Design", "Product Designer", "Product Designer"),
+    ("Senior Product Engineer", "Product Engineer", "Product Engineer"),
+])
+def test_title_only_types_need_the_title(title, model_type, want):
+    raw = {"job_type": model_type, "employment_type": "Full-time", "seniority": "Mid"}
+    assert classify.validate_job(raw, title)["job_type"] == want

@@ -102,7 +102,7 @@ JOB_GUIDE = (
 )
 
 
-JOB_CLASSIFIER = "model4"  # bump with JOB_GUIDE changes; stored jobs from older versions are retagged
+JOB_CLASSIFIER = "model5"  # bump with JOB_GUIDE changes; stored jobs from older versions are retagged
 
 
 def job_prompt(job: dict) -> str:
@@ -183,8 +183,8 @@ def validate_job(raw: dict, title: str = "") -> dict:
     # Nova sometimes wraps single answers in a list; take the first value.
     raw = {k: (v[0] if isinstance(v, list) and v else v) for k, v in raw.items()}
     job_type = raw.get("job_type")
-    if job_type not in tx.JOB_TYPES:
-        # Off-list answers defer to the keyword rules, which map to the exact list.
+    if job_type not in tx.JOB_TYPES or (job_type in TITLE_ONLY_TYPES and not re.search(TITLE_ONLY_TYPES[job_type], title, re.I)):
+        # Off-list answers, and title-only types the title doesn't name, defer to the keyword rules.
         job_type = rule_classify_job({"title": title})["job_type"]
     emp = raw.get("employment_type")
     if emp not in tx.EMPLOYMENT_TYPES:
@@ -270,16 +270,24 @@ def rule_classify_story(item: dict) -> dict:
     }
 
 
+# The model over-uses these types, so it may pick one only when the title says so.
+TITLE_ONLY_TYPES = {
+    "UX Engineer": r"ux engineer|design engineer|design technologist",
+    "Product Builder": r"product builder",
+    "Product Engineer": r"product engineer",
+    "Product Designer": r"product design|head of design|design lead|director of design|\bdesign (manager|director)",
+}
+
 JOB_TYPE_KEYWORDS = [
     ("Other", r"battery|hardware|mechanical|electrical|manufacturing|facilities|technician|silicon|photonics|materials"),
     ("Regulatory and Quality", r"regulatory|quality assurance specialist|\bqms\b"),
     ("Project or Program Manager", r"program manager|project manager|\btpm\b"),
     ("Operations and Strategy", r"revenue cycle"),
-    ("UX Engineer", r"ux engineer|design engineer|design technologist"),
-    ("Product Builder", r"product builder"),
-    ("Product Engineer", r"product engineer"),
+    ("UX Engineer", TITLE_ONLY_TYPES["UX Engineer"]),
+    ("Product Builder", TITLE_ONLY_TYPES["Product Builder"]),
+    ("Product Engineer", TITLE_ONLY_TYPES["Product Engineer"]),
     ("UX Researcher", r"ux research|user research"),
-    ("Product Designer", r"product design"),
+    ("Product Designer", TITLE_ONLY_TYPES["Product Designer"]),
     ("UX/UI Designer", r"\bux\b|\bui\b.*designer|interaction design"),
     ("Brand Designer", r"brand design"),
     ("Graphic Designer", r"graphic design|visual design"),
