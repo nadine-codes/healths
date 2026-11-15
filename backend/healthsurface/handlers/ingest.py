@@ -322,8 +322,32 @@ def ingest_summary(report: dict) -> None:
                          "audio": audio, "voice": voice.VOICE}
 
 
+TICKER_EACH = 8
+TICKER_MIN_AMOUNT = 1e6  # leaves out placeholder Form D amounts such as $1
+TICKER_LABELS = {"Reported news", "Press release", "Regulatory action"}  # titles that read as headlines
+
+
+def ticker_items(news: list, funding: list) -> dict:
+    """The few fields the top ticker needs, newest first, so the page can show it without the full lists."""
+    newest = lambda rows: sorted(rows, key=lambda r: r.get("date") or "", reverse=True)  # noqa: E731
+    seen, rounds = set(), []
+    for r in newest(funding):
+        if (r.get("amount_usd") or 0) >= TICKER_MIN_AMOUNT and r.get("company") not in seen:
+            seen.add(r.get("company"))
+            rounds.append({k: r.get(k) for k in ("company", "amount_usd", "source_kind", "source_url")})
+    heads = [{k: r.get(k) for k in ("label", "title", "url")} for r in newest(news)
+             if r.get("label") in TICKER_LABELS and not classify.is_blocked_story(r.get("title"), r.get("summary"))]
+    return {"funding": rounds[:TICKER_EACH], "news": heads[:TICKER_EACH]}
+
+
+def ingest_ticker(report: dict) -> None:
+    ticker = ticker_items(store.scan_all(store.news), store.scan_all(store.funding))
+    store.put_meta("ticker", ticker)
+    report["ticker"] = {k: len(v) for k, v in ticker.items()}
+
+
 STAGES = {"news": ingest_news, "retag": retag_news, "funding": ingest_funding, "jobs": ingest_jobs, "brief": ingest_brief,
-          "summary": ingest_summary}
+          "summary": ingest_summary, "ticker": ingest_ticker}
 
 
 def handler(event, context):

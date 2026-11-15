@@ -9,7 +9,7 @@ from . import store
 def _respond(body, status=200, max_age=300):
     return {
         "statusCode": status,
-        "headers": {"content-type": "application/json", "cache-control": f"public, max-age={max_age}"},
+        "headers": {"content-type": "application/json", "cache-control": f"public, max-age={max_age}, stale-while-revalidate=3600" if max_age else "no-store"},
         "body": json.dumps(body, separators=(",", ":")),
     }
 
@@ -47,7 +47,8 @@ def handler(event, context):
         return _respond({"app": config.APP_NAME, "tagline": config.TAGLINE, "disclaimer": config.DISCLAIMER,
                          "taxonomy": taxonomy.as_dict(), "last_run": last.get("started_at"),
                          "sources": {k: {"name": v["name"], "label": v["label"]} for k, v in config.NEWS_SOURCES.items()},
-                         "brief": brief, "summary": store.get_meta("summary"), "ask_enabled": ask_enabled()})
+                         "brief": brief, "summary": store.get_meta("summary"), "ask_enabled": ask_enabled(),
+                         "ticker": store.get_meta("ticker")})
     if path == "briefing":
         return _respond(briefing(store.get_meta("summary")))
     if path == "news":

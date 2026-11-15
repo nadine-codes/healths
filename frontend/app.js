@@ -248,17 +248,39 @@ function tickerItems(news, funding) {
   return Array.from({ length: Math.max(rounds.length, headlines.length) }, (_, n) => [rounds[n], headlines[n]]).flat().filter(Boolean);
 }
 
-async function renderTicker() {
-  const results = await Promise.allSettled([fetchItems("news"), fetchItems("funding")]);
-  const [news, funding] = results.map((r) => (r.status === "fulfilled" ? r.value : []));
-  const items = tickerItems(news, funding);
-  if (!items.length) return;
+const TICKER_CACHE = "hs-ticker";
+let tickerShown = "";
+
+// Draws the ticker from the small list /api/meta carries (built at each refresh), so it never waits
+// for the full news and funding lists. Returning visitors see their last ticker before any request.
+function drawTicker(data) {
+  const items = data ? tickerItems(data.news || [], data.funding || []) : [];
+  const key = JSON.stringify(items);
+  if (!items.length) return tickerShown !== "";
+  if (key === tickerShown) return true;
+  tickerShown = key;
   const links = (tabindex) => items.map((i) => `<li><a href="${esc(i.url)}" target="_blank" rel="noopener"${tabindex}><span class="ticker-tag">${esc(i.tag)}</span>${esc(i.text)}</a></li>`).join("");
   // The second copy makes the loop seamless, so it stays out of the keyboard and screen reader order.
   const track = $("[data-ticker-track]");
   track.innerHTML = `<ul class="ticker-list">${links("")}</ul><ul class="ticker-list" aria-hidden="true">${links(' tabindex="-1"')}</ul>`;
   $(".ticker").hidden = false;
   track.style.animationDuration = `${track.scrollWidth / 2 / TICKER_PX_PER_SECOND}s`;
+  return true;
+}
+
+function cachedTicker() {
+  try { return JSON.parse(localStorage.getItem(TICKER_CACHE)); } catch { return null; }
+}
+
+async function renderTicker(fresh) {
+  if (fresh) {
+    try { localStorage.setItem(TICKER_CACHE, JSON.stringify(fresh)); } catch { /* storage blocked */ }
+    if (drawTicker(fresh)) return;
+  }
+  // Older API without a ticker field: fall back to the full lists.
+  const results = await Promise.allSettled([fetchItems("news"), fetchItems("funding")]);
+  const [news, funding] = results.map((r) => (r.status === "fulfilled" ? r.value : []));
+  if (!drawTicker({ news, funding }) && !tickerShown) $(".ticker").hidden = true;
 }
 
 // ---------- "In focus" band: a featured story plus a scrolling playlist that advances on its own ----------
@@ -433,6 +455,7 @@ function renderAsk() {
 }
 
 async function init() {
+  drawTicker(cachedTicker());
   try {
     state.meta = await getJSON("/api/meta");
   } catch {
@@ -463,6 +486,7 @@ async function init() {
   if (state.meta.last_run) {
     $("[data-last-run]").textContent = `Last refreshed ${new Date(state.meta.last_run).toLocaleString()}.`;
   }
+  renderTicker(state.meta.ticker);
   renderSummary();
   renderAsk();
   $("[data-dateline]").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
@@ -485,7 +509,6 @@ async function init() {
   });
   const start = location.hash.slice(1);
   selectTab(VIEWS[start] ? start : "news", false);
-  renderTicker();
 }
 
 init();
