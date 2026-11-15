@@ -478,7 +478,16 @@ async function init() {
     if (form.employment) fillSelect(form.employment, t.employment_types, "Any type");
     if (form.seniority) fillSelect(form.seniority, t.seniority || [], "Any level");
     const name = form.dataset.for;
-    form.addEventListener("input", () => { state.shown[name] = PAGE; render(name); });
+    const reset = form.querySelector("[data-reset]");
+    const syncReset = () => { reset.disabled = ![...new FormData(form).values()].some(Boolean); };
+    form.addEventListener("input", () => { state.shown[name] = PAGE; render(name); syncReset(); });
+    reset.addEventListener("click", () => {
+      form.reset();  // back to each dropdown's "All" option and an empty search
+      state.shown[name] = PAGE;
+      render(name);
+      syncReset();
+      form.querySelector("select, input").focus();  // the button just disabled itself; keep keyboard users in the form
+    });
     form.addEventListener("submit", (e) => e.preventDefault());
   }
   $("#contract-links").innerHTML = CONTRACT_SOURCES

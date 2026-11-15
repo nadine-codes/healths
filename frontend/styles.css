@@ -270,6 +270,15 @@ button { font: inherit; }
 }
 .filters select:hover, .filters input:hover { border-color: #bdbab2; }
 .filters select:focus, .filters input:focus { border-color: var(--ink); outline: none; }
+/* Reset sits at the right end of the filters, level with the boxes; it lights up once a filter is set. */
+.filters-reset {
+  align-self: flex-end; margin-left: auto;
+  font: 600 0.9rem/1.2 var(--sans); color: var(--paper); background: var(--ink);
+  border: 1.5px solid var(--ink); border-radius: 999px; padding: 9px 18px; cursor: pointer;
+}
+.filters-reset:hover { background: var(--ink-2); border-color: var(--ink-2); }
+.filters-reset:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.filters-reset:disabled { color: var(--muted); background: transparent; border-color: var(--rule); cursor: default; }
 
 /* ---------- Lists ---------- */
 .list { list-style: none; margin: 0; padding: 0; }

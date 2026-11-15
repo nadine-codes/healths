@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=Inter:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="styles.css?v=nad57">
+  <link rel="stylesheet" href="styles.css?v=nad58">
 </head>
 <body>
   <header class="masthead">
@@ -60,6 +60,7 @@
           <label>Focus area <select name="focus"></select></label>
           <label>Source type <select name="label"></select></label>
           <label class="grow">Search <input name="q" type="search" placeholder="Headline or source"></label>
+          <button type="button" class="filters-reset" data-reset disabled>Reset</button>
         </form>
         <ol class="list stories" id="news-list"></ol>
       </div>
@@ -89,6 +90,7 @@
             <option value="100000000-">$100M and up</option>
             <option value="unknown">Not disclosed</option>
           </select></label>
+          <button type="button" class="filters-reset" data-reset disabled>Reset</button>
         </form>
         <ol class="list rows" id="funding-list"></ol>
       </div>
@@ -115,6 +117,7 @@
             <option value="onsite">On-site or hybrid</option>
           </select></label>
           <label class="grow">Search <input name="q" type="search" placeholder="Title, company or location"></label>
+          <button type="button" class="filters-reset" data-reset disabled>Reset</button>
         </form>
         <ol class="list rows" id="jobs-list"></ol>
         <aside class="contract">
@@ -163,6 +166,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=nad57" defer></script>
+  <script src="app.js?v=nad58" defer></script>
 </body>
 </html>
