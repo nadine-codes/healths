@@ -20,7 +20,6 @@ MAX_NEW_JOBS_PER_RUN = 200
 # Every news source, its evidence label (decided by code, not AI) and whether
 # visitors can read it without paying or signing up.
 NEWS_SOURCES = {
-    "fda_press": {"name": "FDA Press Announcements", "label": "Regulatory action", "free_to_read": True, "commercial": False},
     "openfda_drugs": {"name": "openFDA Drug Approvals", "label": "Regulatory action", "free_to_read": True, "commercial": False},
     "openfda_devices": {"name": "openFDA Device Clearances", "label": "Regulatory action", "free_to_read": True, "commercial": False},
     "medrxiv": {"name": "medRxiv", "label": "Preprint", "free_to_read": True, "commercial": False},

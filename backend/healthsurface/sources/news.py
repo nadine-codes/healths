@@ -70,10 +70,6 @@ def fetch_rss(source: str, url: str, limit: int = 25) -> list[dict]:
     return items
 
 
-def fetch_fda_press() -> list[dict]:
-    return fetch_rss("fda_press", "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml")
-
-
 def _ymd(s: str) -> str:
     return f"{s[:4]}-{s[4:6]}-{s[6:8]}" if s and len(s) == 8 else s
 
@@ -256,7 +252,6 @@ def free_to_read(url: str) -> tuple[bool, str]:
 
 
 FETCHERS = {
-    "fda_press": fetch_fda_press,
     "openfda_drugs": fetch_openfda_drugs,
     "openfda_devices": fetch_openfda_devices,
     "medrxiv": fetch_medrxiv,

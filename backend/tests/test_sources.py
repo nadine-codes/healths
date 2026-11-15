@@ -11,7 +11,7 @@ def test_make_item_label_comes_from_config_not_ai():
 
 
 def test_fda_links_are_upgraded_to_https():
-    item = news.make_item("fda_press", "http://www.fda.gov/news-events/x", "t", "2026-10-01")
+    item = news.make_item("openfda_drugs", "http://www.fda.gov/news-events/x", "t", "2026-10-01")
     assert item["url"].startswith("https://")
 
 

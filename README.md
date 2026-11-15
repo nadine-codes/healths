@@ -108,7 +108,6 @@ An "Ask what's new" chat, opened from the floating logo button at the bottom rig
 | Source | Used for | Label | Terms status |
 |---|---|---|---|
 | openFDA drugs@FDA, device 510(k) and De Novo | Approvals and clearances | Regulatory action | CC0 public domain. Links go to FDA accessdata pages. |
-| FDA press announcements RSS | Press announcements | Regulatory action | US government work. **Currently blocked from AWS IP ranges (HTTP 404)**, so the fetcher logs and skips it. |
 | medRxiv API (api.biorxiv.org) | Preprints | Preprint | Metadata API for reuse. We store title, link, date, category and the license field, never the abstract. |
 | PubMed E-utilities | RCTs, meta-analyses and systematic reviews on health tech topics | Peer-reviewed study | NCBI policy followed: `tool` and `email` sent, under 3 requests per second, and NCBI's disclaimer and copyright notice linked in the site footer as their scripting guidelines require. Title, journal, date and link only; no abstracts, since publishers may hold copyright. Links go to PubMed Central when an open copy exists. |
 | SEC EDGAR full-text search and Form D XML | Funding | n/a | SEC fair access: identifying User-Agent, under 10 requests per second. |
