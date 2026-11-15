@@ -478,7 +478,7 @@ async function init() {
     if (form.employment) fillSelect(form.employment, t.employment_types, "Any type");
     if (form.seniority) fillSelect(form.seniority, t.seniority || [], "Any level");
     const name = form.dataset.for;
-    const reset = form.querySelector("[data-reset]");
+    const reset = document.querySelector(`[data-reset="${name}"]`);
     const syncReset = () => { reset.disabled = ![...new FormData(form).values()].some(Boolean); };
     form.addEventListener("input", () => { state.shown[name] = PAGE; render(name); syncReset(); });
     reset.addEventListener("click", () => {
