@@ -428,6 +428,10 @@ def test_employer_sector_from_model_and_fallback():
     # Model fails or answers off-list: the company and title decide.
     assert classify.employer_sector(job, lambda s, u: '{"sector": "Fintech"}') is None
     assert classify.employer_sector({"company": "Sprinter Health", "title": "Patient Engagement Specialist"}) == "Health Tech"
+    # A health word in the company's name beats a "no" from the model; a health word in the title doesn't.
+    no = lambda s, u: '{"sector": "Not a health company"}'
+    assert classify.employer_sector({"company": "Orca Bio", "title": "Senior Specialist QMS"}, no) == "Life Sciences and Biotech"
+    assert classify.employer_sector({"company": "Pebl", "title": "Patient Recruiting Coordinator"}, no) is None
     assert "Policy and Regulation" not in classify.employer_prompt(job)
 
 

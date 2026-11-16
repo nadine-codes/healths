@@ -425,6 +425,7 @@ def classify_story(item: dict, invoke: Optional[Invoke] = None) -> tuple[dict, s
 # Remote OK tags often name benefits ("health insurance"), so its health filter lets in employers that
 # aren't health companies. The model names the employer's sector or says it isn't one.
 NOT_HEALTH = "Not a health company"
+EMPLOYER_CHECK = 2  # bump when the employer check changes; stored Remote OK jobs are checked again
 REMOTE_HEALTH_RE = re.compile(r"health|medical|medic|clinic|biotech|pharma|patient|hospital|nurs|therap|telehealth"
                               r"|care\b|dental|\bbio\b|diagnos|genom|surg", re.I)
 COMPANY_SECTORS = [s for s in tx.SECTORS if s != "Policy and Regulation"]
@@ -433,27 +434,38 @@ COMPANY_SECTORS = [s for s in tx.SECTORS if s != "Policy and Regulation"]
 def employer_prompt(job: dict) -> str:
     guide = "\n".join(f"- {s}: {SECTOR_GUIDE[s]}" for s in COMPANY_SECTORS)
     return (
-        f"Which sector is this employer in? Judge the company, not the role.\nSectors:\n{guide}\n"
-        f"- {NOT_HEALTH}: the company doesn't make health, medical or life sciences products or deliver care, "
-        "even if it offers health benefits or sells to some health customers.\n\n"
+        "Is this employer a health company? A health company makes health, medical or life sciences products, "
+        "or delivers or pays for care. Software, payments, fintech, HR, recruiting, staffing, payroll, developer "
+        "tools, education, pet insurance and consulting companies are not, even if they offer health benefits "
+        "or have some health customers. If you don't know the company and the name and title show no health "
+        f"product or care, answer \"{NOT_HEALTH}\".\n"
+        f"Answers:\n- {NOT_HEALTH}\n{guide}\n\n"
         f"Company: {job.get('company')}\nJob title: {job.get('title')}\nTags: {(job.get('text') or '')[:300]}\n\n"
-        'Return JSON {"sector": "<one name copied exactly from the list>"}.'
+        'Return JSON {"evidence": "<what about the company shows it is or is not a health company, in a few words>", '
+        '"sector": "<one answer copied exactly from the list>"}.'
     )
 
 
 def employer_sector(job: dict, invoke: Optional[Invoke] = None) -> Optional[str]:
-    """A sector for a health employer, or None when it isn't one (the job is then left out)."""
+    """A sector for a health employer, or None when it isn't one (the job is then left out).
+
+    The model knows big companies but not many small ones, so a health word in the company's own name
+    ("Vytalize Health", "Orca Bio") keeps the job even when the model says no. When the model can't
+    answer, the job title counts too ("Telehealth Endocrinologist")."""
+    company, title = job.get("company") or "", job.get("title") or ""
+    answer = None
     if invoke:
         try:
-            raw = parse_json(invoke(SYSTEM_PROMPT, employer_prompt(job))).get("sector")
-            if raw == NOT_HEALTH:
-                return None
-            if raw in COMPANY_SECTORS:
-                return raw
+            answer = parse_json(invoke(SYSTEM_PROMPT, employer_prompt(job))).get("sector")
         except Exception:  # noqa: BLE001 - fall back to the name rule
-            pass
-    text = f"{job.get('company', '')} {job.get('title', '')}"
-    return sector_from_text(text, "Health Tech") if REMOTE_HEALTH_RE.search(text) else None
+            answer = None
+    if answer in COMPANY_SECTORS:
+        return answer
+    named = REMOTE_HEALTH_RE.search(company) or (answer != NOT_HEALTH and REMOTE_HEALTH_RE.search(title))
+    if not named:
+        return None
+    default = "Life Sciences and Biotech" if re.search(r"\bbio", company, re.I) else "Health Tech"
+    return sector_from_text(f"{company} {title}", default)
 
 
 def classify_job(job: dict, invoke: Optional[Invoke] = None) -> tuple[dict, str]:

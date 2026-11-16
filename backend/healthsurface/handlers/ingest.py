@@ -184,7 +184,7 @@ def ingest_funding(report: dict) -> None:
 
 
 JOB_FIELDS = ("id", "company", "title", "url", "location", "remote", "posted", "source", "source_name",
-              "sector", "focus_areas")
+              "sector", "focus_areas", "employer_check")
 
 
 def _discover_companies(report: dict) -> list[dict]:
@@ -213,10 +213,11 @@ MAX_JOB_ATTEMPTS = 3  # a job the model keeps failing on keeps its keyword tags 
 def ingest_jobs(report: dict) -> None:
     extra = _discover_companies(report)
     fetched, report["job_sources"], boards_ok = jobs_src.fetch_all(extra)
-    existing = {r["id"]: r for r in store.scan_all(store.jobs, "id, classifier, job_type, seniority, attempts, sector")}
+    existing = {r["id"]: r for r in store.scan_all(store.jobs, "id, classifier, job_type, seniority, attempts, employer_check")}
     fetched = list({j["id"]: j for j in fetched}.values())
-    # Remote OK rows stored before employers got a sector are handled again as new (NAD-64).
-    unsorted_remote = {i for i, r in existing.items() if i.startswith("remoteok#") and not r.get("sector")}
+    # Remote OK rows checked by an older employer check are handled again as new (NAD-64).
+    unsorted_remote = {i for i, r in existing.items()
+                       if i.startswith("remoteok#") and r.get("employer_check") != classify.EMPLOYER_CHECK}
     new = [j for j in fetched if j["id"] not in existing or j["id"] in unsorted_remote]
 
     invoke = _model()
@@ -225,7 +226,7 @@ def ingest_jobs(report: dict) -> None:
         sectors = dict(zip([j["id"] for j in remote], pool.map(lambda j: classify.employer_sector(j, invoke), remote)))
     not_health = {i for i, s in sectors.items() if s is None}
     for j in remote:
-        j["sector"] = sectors[j["id"]]
+        j.update(sector=sectors[j["id"]], employer_check=classify.EMPLOYER_CHECK)
     new = [j for j in new if j["id"] not in not_health]
     store.delete_many(store.jobs, [i for i in not_health if i in existing] +
                       [i for i in unsorted_remote if i not in {j["id"] for j in fetched}])
