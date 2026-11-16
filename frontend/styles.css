@@ -397,7 +397,7 @@ li:has(> .more) { grid-column: 1 / -1; }
 .radar svg { width: 100%; height: auto; overflow: visible; font-family: var(--sans); }
 .radar-ring { fill: none; stroke: var(--rule); stroke-width: 1; }
 .radar-spoke { stroke: var(--rule); stroke-width: 1; }
-.radar-tick { font-size: 9px; fill: var(--muted); }
+.radar-tick { font-size: 9px; fill: var(--muted); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
 .radar-axis { font-size: 11px; font-weight: 600; fill: var(--ink-2); }
 .radar-axis.on { fill: var(--ink); font-weight: 800; }
 .radar-usd { fill: var(--usd); fill-opacity: 0.16; stroke: var(--usd); stroke-width: 2; stroke-linejoin: round; }
