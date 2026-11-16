@@ -455,3 +455,9 @@ def test_race_headlines_are_blocked_and_race_sentences_trimmed():
     text = "New guidelines suggest PSA tests for men in their 50s and 60s. Benefits may be greater for Black men and those with a family history."
     assert classify.without_race(text) == "New guidelines suggest PSA tests for men in their 50s and 60s."
     assert classify.validate_story({"sector": "Pharma", "summary": text})["summary"] == classify.without_race(text)
+
+
+def test_brief_accepts_nested_or_string_picks():
+    stories = [{"summary": f"Story {i} happened. More.", "label": "Preprint", "url": f"u{i}", "title": f"T{i}"} for i in range(8)]
+    out = classify.todays_brief(stories, lambda s, u: '{"picks": [[0], [1, 2], "3", 4, 4]}')
+    assert [b["url"] for b in out] == ["u0", "u1", "u2", "u3", "u4"]

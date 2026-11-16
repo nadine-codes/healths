@@ -490,7 +490,11 @@ def todays_brief(stories: list[dict], invoke: Invoke) -> list[dict]:
     """5 to 7 bullets from stored stories. The model only chooses which stories; each bullet
     reuses that story's own summary, label and link, so a bullet can never carry the wrong label."""
     raw = parse_json(invoke(SYSTEM_PROMPT, brief_prompt(stories)))
-    picks = [i for i in dict.fromkeys(raw.get("picks", [])) if isinstance(i, int) and 0 <= i < len(stories)][:7]
+    flat = []  # the model sometimes nests its picks ([[3], [7]]) or sends numbers as strings
+    for p in raw.get("picks") or []:
+        flat.extend(p if isinstance(p, list) else [p])
+    nums = [int(p) for p in flat if isinstance(p, int) or (isinstance(p, str) and p.strip().isdigit())]
+    picks = [i for i in dict.fromkeys(nums) if 0 <= i < len(stories)][:7]
     bullets = [{"text": stories[i]["summary"].split(". ")[0].rstrip(".") + ".", "label": stories[i]["label"],
                 "url": stories[i]["url"], "title": stories[i]["title"]} for i in picks if stories[i].get("summary")]
     if len(bullets) < 5:
