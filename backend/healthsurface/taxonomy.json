@@ -4,8 +4,6 @@
     "Med Tech",
     "Life Sciences and Biotech",
     "Pharma",
-    "Supplements and Nutraceuticals",
-    "Peptides",
     "Health AI",
     "Health Data and IT",
     "Care Delivery and Payers",
@@ -31,7 +29,9 @@
     "Pain and chronic conditions",
     "Genetics and precision medicine",
     "Pediatrics and family health",
-    "Senior care"
+    "Senior care",
+    "Supplements",
+    "Peptides and GLP-1s"
   ],
   "evidence_labels": {
     "Press release": "Written by the company or institution itself to announce something.",

@@ -213,16 +213,28 @@ MAX_JOB_ATTEMPTS = 3  # a job the model keeps failing on keeps its keyword tags 
 def ingest_jobs(report: dict) -> None:
     extra = _discover_companies(report)
     fetched, report["job_sources"], boards_ok = jobs_src.fetch_all(extra)
-    existing = {r["id"]: r for r in store.scan_all(store.jobs, "id, classifier, job_type, seniority, attempts")}
+    existing = {r["id"]: r for r in store.scan_all(store.jobs, "id, classifier, job_type, seniority, attempts, sector")}
     fetched = list({j["id"]: j for j in fetched}.values())
-    new = [j for j in fetched if j["id"] not in existing]
+    # Remote OK rows stored before employers got a sector are handled again as new (NAD-64).
+    unsorted_remote = {i for i, r in existing.items() if i.startswith("remoteok#") and not r.get("sector")}
+    new = [j for j in fetched if j["id"] not in existing or j["id"] in unsorted_remote]
+
+    invoke = _model()
+    remote = [j for j in new if j.get("source") == "remoteok"]
+    with ThreadPoolExecutor(4) as pool:
+        sectors = dict(zip([j["id"] for j in remote], pool.map(lambda j: classify.employer_sector(j, invoke), remote)))
+    not_health = {i for i, s in sectors.items() if s is None}
+    for j in remote:
+        j["sector"] = sectors[j["id"]]
+    new = [j for j in new if j["id"] not in not_health]
+    store.delete_many(store.jobs, [i for i in not_health if i in existing] +
+                      [i for i in unsorted_remote if i not in {j["id"] for j in fetched}])
 
     def needs_retry(row):  # rows tagged by an older job prompt, or keyword-only rows with attempts left
         return row and row.get("classifier") != classify.JOB_CLASSIFIER and row.get("attempts", 0) < MAX_JOB_ATTEMPTS
 
-    retry = [j for j in fetched if needs_retry(existing.get(j["id"]))]
+    retry = [j for j in fetched if needs_retry(existing.get(j["id"])) and j["id"] not in not_health]
 
-    invoke = _model()
     to_model = (new + retry)[: config.MAX_NEW_JOBS_PER_RUN] if invoke else []
     model_ids = {j["id"] for j in to_model}
     with ThreadPoolExecutor(4) as pool:
@@ -246,6 +258,7 @@ def ingest_jobs(report: dict) -> None:
     closed = closed_job_ids(existing, {j["id"] for j in fetched}, boards_ok, configured, failures)
     store.delete_many(store.jobs, closed)
     report["jobs"] = {"fetched": len(fetched), "new": len(new), "stored": len(rows), "model": len(to_model),
+                      "remote_not_health": len(not_health),
                       "rules_refreshed": len(refreshed), "closed_removed": len(closed)}
 
 
@@ -396,7 +409,31 @@ def ingest_ticker(report: dict) -> None:
     report["ticker"] = {k: len(v) for k, v in ticker.items()}
 
 
-STAGES = {"news": ingest_news, "retag": retag_news, "funding": ingest_funding, "jobs": ingest_jobs, "brief": ingest_brief,
+# Sectors retired on 2026-11-16 (NAD-64): almost nothing used them. They live on as focus areas.
+RETIRED_SECTORS = {"Peptides": ("Pharma", "Peptides and GLP-1s"),
+                   "Supplements and Nutraceuticals": ("Life Sciences and Biotech", "Supplements")}
+
+
+def retire_sectors(rows: list[dict]) -> list[dict]:
+    moved = []
+    for r in rows:
+        if r.get("sector") in RETIRED_SECTORS:
+            sector, focus = RETIRED_SECTORS[r["sector"]]
+            areas = r.get("focus_areas") or []
+            moved.append({**r, "sector": sector, "focus_areas": areas if focus in areas else areas[:2] + [focus]})
+    return moved
+
+
+def ingest_retire_sectors(report: dict) -> None:
+    counts = {}
+    for name, table in (("news", store.news), ("funding", store.funding), ("jobs", store.jobs)):
+        moved = retire_sectors(store.scan_all(table))
+        store.put_many(table, moved)
+        counts[name] = len(moved)
+    report["retired_sectors"] = counts
+
+
+STAGES = {"retire_sectors": ingest_retire_sectors, "news": ingest_news, "retag": retag_news, "funding": ingest_funding, "jobs": ingest_jobs, "brief": ingest_brief,
           "summary": ingest_summary, "ticker": ingest_ticker}
 
 

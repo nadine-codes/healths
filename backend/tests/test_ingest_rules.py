@@ -71,3 +71,13 @@ def test_funding_cleanup_drops_noise_and_resorts_grants():
     drop, resort = ingest.funding_cleanup(rows, date(2026, 11, 16))
     assert drop == ["formd#1", "news#x"]
     assert [(r["id"], r["sector"]) for r in resort] == [("nih#1", "Med Tech")]
+
+
+def test_retired_sectors_move_and_become_focus_areas():
+    rows = [{"id": "a", "sector": "Peptides", "focus_areas": ["Diabetes", "Cardiovascular", "Sleep"]},
+            {"id": "b", "sector": "Supplements and Nutraceuticals", "focus_areas": []},
+            {"id": "c", "sector": "Pharma", "focus_areas": []}]
+    moved = {r["id"]: r for r in ingest.retire_sectors(rows)}
+    assert set(moved) == {"a", "b"}
+    assert moved["a"]["sector"] == "Pharma" and moved["a"]["focus_areas"] == ["Diabetes", "Cardiovascular", "Peptides and GLP-1s"]
+    assert moved["b"]["sector"] == "Life Sciences and Biotech" and moved["b"]["focus_areas"] == ["Supplements"]

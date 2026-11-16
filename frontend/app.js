@@ -69,8 +69,12 @@ function formValues(name) {
   return Object.fromEntries(new FormData($(`form[data-for="${name}"]`)).entries());
 }
 
+// Funding's Sector filter also offers the map's combined groups, as "group:<name>".
+const inSector = (sector, value) => !value || (value.startsWith("group:")
+  ? (RADAR_GROUPS.find(([g]) => `group:${g}` === value)?.[1] || []).includes(sector)
+  : sector === value);
 const matchesTags = (item, f) =>
-  (!f.sector || item.sector === f.sector) && (!f.focus || (item.focus_areas || []).includes(f.focus));
+  inSector(item.sector, f.sector) && (!f.focus || (item.focus_areas || []).includes(f.focus));
 const matchesQuery = (q, ...fields) => !q || fields.join(" ").toLowerCase().includes(q.toLowerCase());
 
 const VIEWS = {
@@ -218,11 +222,20 @@ function fillFundingFilters(rows) {
     Object.entries(kinds).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<option value="${esc(k)}">${esc(k)} (${n})</option>`).join("");
 }
 
-// ---------- Funding radar: share of disclosed dollars and of deals, by sector ----------
-// It follows every funding filter except Sector, so the other sectors stay in view for comparison;
-// the chosen sector is highlighted. Rings are spaced by square root so a polygon's area tracks its
-// share and small sectors don't vanish next to Life Sciences.
+// ---------- Funding radar: share of disclosed dollars and of deals, by sector group ----------
+// It follows every funding filter except Sector, so the other groups stay in view for comparison;
+// the chosen sector's group is highlighted. Rings are spaced by square root so a polygon's area tracks
+// its share and small groups don't vanish next to Biotech. Sectors are grouped into five spokes because
+// funding sources rarely say more than "biotech", "devices" or "other health care" (NAD-64).
+const RADAR_GROUPS = [
+  ["Biotech and Pharma", ["Life Sciences and Biotech", "Pharma"]],
+  ["Devices and Diagnostics", ["Med Tech"]],
+  ["Care Delivery and Payers", ["Care Delivery and Payers"]],
+  ["Health AI", ["Health AI"]],
+  ["Digital Health", ["Health Tech", "Health Data and IT"]],
+];
 const RADAR_SKIP = new Set(["Policy and Regulation"]);  // a news topic, not something companies raise money in
+const groupValue = ([name, members]) => (members.length > 1 ? `group:${name}` : members[0]);
 const RADAR_RINGS = [0.05, 0.1, 0.25, 0.5, 0.75, 1];
 
 function radarLabel(text, x, y, anchor, on) {
@@ -240,18 +253,22 @@ function renderRadar(items) {
   const fig = $("#funding-radar");
   const f = formValues("funding");
   const rows = VIEWS.funding.filter(items, { ...f, sector: "" });
-  const sectors = (state.meta.taxonomy.sectors || []).filter((s) => !RADAR_SKIP.has(s));
-  if (!rows.length || sectors.length < 3) { fig.hidden = true; return; }
-  const by = Object.fromEntries(sectors.map((s) => [s, { usd: 0, deals: 0 }]));
+  // A sector added to the taxonomy later gets its own spoke until it's placed in a group.
+  const grouped = new Set(RADAR_GROUPS.flatMap(([, m]) => m));
+  const groups = [...RADAR_GROUPS, ...(state.meta.taxonomy.sectors || [])
+    .filter((x) => !grouped.has(x) && !RADAR_SKIP.has(x)).map((x) => [x, [x]])];
+  if (!rows.length) { fig.hidden = true; return; }
+  const by = groups.map(([name, members]) => ({ s: name, members, value: groupValue([name, members]), usd: 0, deals: 0 }));
   let usd = 0;
   for (const r of rows) {
-    const b = by[r.sector];
+    const b = by.find((g) => g.members.includes(r.sector));
     if (!b) continue;
     b.deals += 1;
     if (r.amount_usd != null) { b.usd += r.amount_usd; usd += r.amount_usd; }
   }
-  const deals = Object.values(by).reduce((n, b) => n + b.deals, 0);
-  const stats = sectors.map((s) => ({ s, ...by[s], pu: usd ? by[s].usd / usd : 0, pd: deals ? by[s].deals / deals : 0 }));
+  const deals = by.reduce((n, b) => n + b.deals, 0);
+  const isOn = (d) => !!f.sector && (f.sector === d.value || d.members.includes(f.sector));
+  const stats = by.map((b) => ({ ...b, on: isOn(b), pu: usd ? b.usd / usd : 0, pd: deals ? b.deals / deals : 0 }));
 
   const C = 220, R = 130, n = stats.length;
   // The outer ring is the smallest step that holds the biggest share, so the shape fills the chart.
@@ -278,7 +295,7 @@ function renderRadar(items) {
     const anchor = Math.abs(c) < 0.2 ? "middle" : c > 0 ? "start" : "end";
     const dy = Math.abs(c) < 0.2 ? (Math.sin(ang(i)) < 0 ? -8 : 10) : 4;
     return `<line class="radar-spoke" x1="${C}" y1="${C}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>
-      ${radarLabel(d.s, lx.toFixed(1), (ly + dy).toFixed(1), anchor, f.sector === d.s)}`;
+      ${radarLabel(d.s, lx.toFixed(1), (ly + dy).toFixed(1), anchor, d.on)}`;
   }).join("");
   const dots = (key, cls) => stats.map((d, i) => { const [x, y] = pt(i, d[key]); return `<circle class="${cls}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"/>`; }).join("");
   // One wedge-shaped hover target per sector, bigger than the marks.
@@ -292,7 +309,7 @@ function renderRadar(items) {
   fig.innerHTML = `
     <figcaption>
       <h3>Where the money is going</h3>
-      <p>Share of disclosed dollars and of deals in each sector, for the funding listed below. It follows your filters, except Sector, which it highlights. Rings are spaced by area, so small sectors stay visible.</p>
+      <p>Share of disclosed dollars and of deals in each sector group, for the funding listed below. It follows your filters, except Sector, which it highlights. Rings are spaced by area, so small sectors stay visible.</p>
       <div class="radar-legend" role="group" aria-label="Key">
         <span class="radar-legend-title">Key</span>
         <ul>
@@ -312,8 +329,8 @@ function renderRadar(items) {
       </svg>
       <table class="radar-table">
         <thead><tr><th scope="col">Sector</th><th scope="col">Dollars</th><th scope="col">Deals</th></tr></thead>
-        <tbody>${ranked.map((d) => `<tr${f.sector === d.s ? ' class="on"' : ""}>
-          <th scope="row"><button type="button" data-radar-sector="${esc(d.s)}" ${d.deals ? "" : "disabled"} title="${f.sector === d.s ? "Show all sectors" : "Show only this sector"}">${esc(d.s)}</button></th>
+        <tbody>${ranked.map((d) => `<tr${d.on ? ' class="on"' : ""}>
+          <th scope="row"><button type="button" data-radar-sector="${esc(d.value)}" ${d.deals ? "" : "disabled"} title="${f.sector === d.value ? "Show all sectors" : "Show only this group"}">${esc(d.s)}</button>${d.members.length > 1 || d.members[0] !== d.s ? `<span class="radar-members">${esc(d.members.join(", "))}</span>` : ""}</th>
           <td>${d.usd ? fmtMoney(d.usd) : "–"} <span>${pct(d.pu)}</span></td>
           <td>${d.deals} <span>${pct(d.pd)}</span></td></tr>`).join("")}</tbody>
       </table>
@@ -581,6 +598,10 @@ async function init() {
   }
   for (const form of document.querySelectorAll("form.filters")) {
     if (form.sector) fillSelect(form.sector, t.sectors, "All sectors");
+    if (form.dataset.for === "funding") {  // the map's combined groups, so a click on one can filter the list
+      form.sector.insertAdjacentHTML("beforeend", `<optgroup label="Groups on the map">${RADAR_GROUPS.filter(([, m]) => m.length > 1)
+        .map((g) => `<option value="${esc(groupValue(g))}">${esc(g[0])} (${esc(g[1].join(", "))})</option>`).join("")}</optgroup>`);
+    }
     if (form.focus) fillSelect(form.focus, t.focus_areas, "All focus areas");
     if (form.label) fillSelect(form.label, Object.keys(t.evidence_labels), "All source types");
     if (form.stage) fillSelect(form.stage, t.round_stages, "All stages");

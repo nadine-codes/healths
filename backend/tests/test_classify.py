@@ -18,8 +18,8 @@ def story_reply(**overrides):
 
 
 def test_taxonomy_sizes_match_brief():
-    assert len(tx.SECTORS) == 10
-    assert len(tx.FOCUS_AREAS) == 20
+    assert len(tx.SECTORS) == 8
+    assert len(tx.FOCUS_AREAS) == 22
     assert list(tx.EVIDENCE_LABELS) == ["Press release", "Preprint", "Peer-reviewed study", "Regulatory action", "Reported news"]
     assert len(tx.JOB_TYPES) == 41  # the 40 listed types plus Other
 
@@ -419,3 +419,19 @@ def test_title_level_beats_model_seniority():
 def test_title_only_types_need_the_title(title, model_type, want):
     raw = {"job_type": model_type, "employment_type": "Full-time", "seniority": "Mid"}
     assert classify.validate_job(raw, title)["job_type"] == want
+
+
+def test_employer_sector_from_model_and_fallback():
+    job = {"company": "Wrapbook", "title": "Senior Software Engineer", "text": "health insurance remote"}
+    assert classify.employer_sector(job, lambda s, u: '{"sector": "Not a health company"}') is None
+    assert classify.employer_sector(job, lambda s, u: '{"sector": "Health AI"}') == "Health AI"
+    # Model fails or answers off-list: the company and title decide.
+    assert classify.employer_sector(job, lambda s, u: '{"sector": "Fintech"}') is None
+    assert classify.employer_sector({"company": "Sprinter Health", "title": "Patient Engagement Specialist"}) == "Health Tech"
+    assert "Policy and Regulation" not in classify.employer_prompt(job)
+
+
+def test_retired_sectors_are_focus_areas():
+    assert "Peptides" not in tx.SECTORS and "Supplements and Nutraceuticals" not in tx.SECTORS
+    assert {"Supplements", "Peptides and GLP-1s"} <= set(tx.FOCUS_AREAS)
+    assert {f for f, _ in classify.FOCUS_KEYWORDS} == set(tx.FOCUS_AREAS)

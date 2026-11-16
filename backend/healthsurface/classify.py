@@ -44,9 +44,7 @@ SECTOR_GUIDE = {
     "Health Tech": "consumer and clinical digital health products, apps, virtual care companies",
     "Med Tech": "medical devices, diagnostics hardware, implants, imaging, device clearances",
     "Life Sciences and Biotech": "biology research, genetics, cell and gene therapy, lab science, preprints on disease biology",
-    "Pharma": "drugs and biologics: approvals, generics, trials of medicines, drug pricing",
-    "Supplements and Nutraceuticals": "vitamins, supplements, nutraceutical products",
-    "Peptides": "peptide therapeutics such as GLP-1 drugs",
+    "Pharma": "drugs and biologics, including peptide drugs such as GLP-1s: approvals, generics, trials of medicines, drug pricing",
     "Health AI": "AI or machine learning built for health care",
     "Health Data and IT": "EHRs, health data infrastructure, interoperability, cybersecurity (not general statistics)",
     "Care Delivery and Payers": "hospitals, clinics, insurers, Medicare/Medicaid operations, care access",
@@ -204,12 +202,10 @@ def validate_job(raw: dict, title: str = "") -> dict:
 SECTOR_KEYWORDS = [
     ("Policy and Regulation", r"\b(policy|congress|cms|medicare|medicaid|legislat|rule|regulat|hhs|guidance|advisory committee)\b"),
     ("Health AI", r"\b(ai|artificial intelligence|machine learning|deep learning|llm|large language|algorithm)\b"),
-    ("Peptides", r"\b(peptide|glp-1|semaglutide|tirzepatide)\b"),
-    ("Supplements and Nutraceuticals", r"\b(supplement|vitamin|nutraceutical|probiotic|omega-3)\b"),
     ("Health Data and IT", r"\b(ehr|electronic health record|interoperab|data platform|cyber|epic|cerner|health it)\b"),
     ("Care Delivery and Payers", r"\b(hospital|health system|payer|insurer|medicare advantage|clinic|telehealth|telemedicine|primary care)\b"),
     ("Med Tech", r"\b(device|implant|510\(k\)|catheter|stent|valve|diagnostic|imaging|surgical|wearable)\b"),
-    ("Pharma", r"\b(drug|tablet|injection|nda|anda|pharma|dose|capsule|biosimilar)\b"),
+    ("Pharma", r"\b(drug|tablet|injection|nda|anda|pharma|dose|capsule|biosimilar|peptide|glp-1|semaglutide|tirzepatide)\b"),
     ("Life Sciences and Biotech", r"\b(biotech|gene|cell therapy|antibody|crispr|genom|protein|trial|vaccine)\b"),
     ("Health Tech", r"\b(app|platform|digital|startup|software|virtual)\b"),
 ]
@@ -240,6 +236,8 @@ FOCUS_KEYWORDS = [
     ("Genetics and precision medicine", r"\b(gene|genetic|genom|precision|crispr|variant)\b"),
     ("Pediatrics and family health", r"\b(child|children|pediatric|paediatric|infant|adolescent|newborn)\b"),
     ("Senior care", r"\b(older adults|elderly|senior|nursing home|aging)\b"),
+    ("Supplements", r"\b(supplements?|vitamins?|nutraceuticals?|probiotics?|omega-3|shilajit)\b"),
+    ("Peptides and GLP-1s", r"\b(peptides?|glp-1s?|semaglutide|tirzepatide|ozempic|wegovy|mounjaro|zepbound)\b"),
 ]
 
 FUNDING_RE = re.compile(
@@ -421,6 +419,41 @@ def classify_story(item: dict, invoke: Optional[Invoke] = None) -> tuple[dict, s
         except Exception:  # noqa: BLE001 - any model or validation failure falls back to rules
             pass
     return rule_classify_story(item), "rules"
+
+
+# ---------- Remote OK employers: health company or not ----------
+# Remote OK tags often name benefits ("health insurance"), so its health filter lets in employers that
+# aren't health companies. The model names the employer's sector or says it isn't one.
+NOT_HEALTH = "Not a health company"
+REMOTE_HEALTH_RE = re.compile(r"health|medical|medic|clinic|biotech|pharma|patient|hospital|nurs|therap|telehealth"
+                              r"|care\b|dental|\bbio\b|diagnos|genom|surg", re.I)
+COMPANY_SECTORS = [s for s in tx.SECTORS if s != "Policy and Regulation"]
+
+
+def employer_prompt(job: dict) -> str:
+    guide = "\n".join(f"- {s}: {SECTOR_GUIDE[s]}" for s in COMPANY_SECTORS)
+    return (
+        f"Which sector is this employer in? Judge the company, not the role.\nSectors:\n{guide}\n"
+        f"- {NOT_HEALTH}: the company doesn't make health, medical or life sciences products or deliver care, "
+        "even if it offers health benefits or sells to some health customers.\n\n"
+        f"Company: {job.get('company')}\nJob title: {job.get('title')}\nTags: {(job.get('text') or '')[:300]}\n\n"
+        'Return JSON {"sector": "<one name copied exactly from the list>"}.'
+    )
+
+
+def employer_sector(job: dict, invoke: Optional[Invoke] = None) -> Optional[str]:
+    """A sector for a health employer, or None when it isn't one (the job is then left out)."""
+    if invoke:
+        try:
+            raw = parse_json(invoke(SYSTEM_PROMPT, employer_prompt(job))).get("sector")
+            if raw == NOT_HEALTH:
+                return None
+            if raw in COMPANY_SECTORS:
+                return raw
+        except Exception:  # noqa: BLE001 - fall back to the name rule
+            pass
+    text = f"{job.get('company', '')} {job.get('title', '')}"
+    return sector_from_text(text, "Health Tech") if REMOTE_HEALTH_RE.search(text) else None
 
 
 def classify_job(job: dict, invoke: Optional[Invoke] = None) -> tuple[dict, str]:
