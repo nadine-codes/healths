@@ -12,6 +12,17 @@ USER_AGENT = f"{APP_NAME}/1.0 (+https://github.com/nadine-codes/healths) {CONTAC
 # Stories whose headline or description match this are never pulled or shown.
 # Covers suicide, suicides, suicidal and suicidality.
 BLOCKED_STORY_TERMS = r"\bsuicid(e|es|al|ality)\b"
+# The owner doesn't want the site to bring up race (NAD-68). A headline on race or ethnicity blocks the
+# story; a summary sentence that mentions it is dropped. Words like "disparities" or "equity" alone don't
+# count: they are as often about income, countries or algorithms.
+RACE_TERMS = (
+    r"\b(?:black|white|asian|hispanic|latin[oax]|brown) (?:and \w+ )?(?:men|women|people|patients|adults|americans|"
+    r"children|youth|teens?|communit(?:y|ies)|individuals|residents|mothers|fathers|families|participants|populations?)\b"
+    r"|\b(?:african|asian|mexican|hispanic)[- ]americans?\b|\bhispanics?\b|\blatin[oax]s?\b|\blatine\b"
+    r"|\bnative americans?\b|\bamerican indians?\b|\balaska natives?\b|\bindigenous (?:people|peoples|communit\w*|population\w*)\b"
+    r"|\bpacific islanders?\b|\bnon-hispanic\b|\bracial\w*|\bracis[mt]\w*|\bethnic\w*|\bsocio-ethnic\w*"
+    r"|\bpeople of colou?r\b|\bbipoc\b|\brace(?: and| or|-based|-conscious|-neutral|/ethnicity)\b|\b(?:by|of|across) race\b"
+)
 
 # Per-run hard caps on Bedrock classification (cost guardrail).
 MAX_NEW_STORIES_PER_RUN = 100

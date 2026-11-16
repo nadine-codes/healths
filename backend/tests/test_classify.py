@@ -439,3 +439,19 @@ def test_retired_sectors_are_focus_areas():
     assert "Peptides" not in tx.SECTORS and "Supplements and Nutraceuticals" not in tx.SECTORS
     assert {"Supplements", "Peptides and GLP-1s"} <= set(tx.FOCUS_AREAS)
     assert {f for f, _ in classify.FOCUS_KEYWORDS} == set(tx.FOCUS_AREAS)
+
+
+def test_race_headlines_are_blocked_and_race_sentences_trimmed():
+    assert classify.is_blocked_story("Insulin genetic clusters and clinical outcomes in Hispanics/Latinos")
+    assert classify.is_blocked_story("Black mothers' perspectives on racism in maternity care")
+    assert classify.is_blocked_story("Ethnic Inequities in Cardiovascular Mortality in Suriname")
+    # Not race: income, countries, algorithms, or "black" and "white" in other senses.
+    for title in ["Global Disparities in Vaccine Reimbursement", "Socioeconomic Inequities in Kidney Care",
+                  "Black box warning added to sleep drug", "White matter changes in older adults",
+                  "The race to approve a new RSV vaccine", "Health equity in algorithm design"]:
+        assert not classify.is_blocked_story(title), title
+    # A race mention after the headline doesn't block the story; the sentence is trimmed instead.
+    assert not classify.is_blocked_story("Prostate cancer testing urged for men in their 50s", "Benefits may be greater for Black men.")
+    text = "New guidelines suggest PSA tests for men in their 50s and 60s. Benefits may be greater for Black men and those with a family history."
+    assert classify.without_race(text) == "New guidelines suggest PSA tests for men in their 50s and 60s."
+    assert classify.validate_story({"sector": "Pharma", "summary": text})["summary"] == classify.without_race(text)

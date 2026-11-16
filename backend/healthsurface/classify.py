@@ -31,11 +31,20 @@ AMOUNT_RE = re.compile(r"\$\s?\d+(?:\.\d+)?\s?(?:million|billion|[mb]n?)\b", re.
 
 
 _BLOCKED = re.compile(config.BLOCKED_STORY_TERMS, re.I)
+RACE_RE = re.compile(config.RACE_TERMS, re.I)
 
 
 def is_blocked_story(*texts: str) -> bool:
-    """True when a story touches a topic we never pull (see config.BLOCKED_STORY_TERMS)."""
-    return any(_BLOCKED.search(t or "") for t in texts)
+    """True when a story touches a topic we never pull (see config.BLOCKED_STORY_TERMS) in any text, or
+    when the first text (a headline, or a single sentence being checked) is about race (config.RACE_TERMS).
+    A race mention further in, such as a summary, is removed with without_race instead."""
+    return any(_BLOCKED.search(t or "") for t in texts) or bool(texts and RACE_RE.search(texts[0] or ""))
+
+
+def without_race(text: str) -> str:
+    """The text minus any sentence that mentions race or ethnicity."""
+    sentences = re.split(r"(?<=[.!?])\s+", (text or "").strip())
+    return " ".join(s for s in sentences if s and not RACE_RE.search(s))
 
 
 # ---------- prompts ----------
@@ -152,7 +161,7 @@ def validate_story(raw: dict) -> dict:
     out = {
         "sector": sector,
         "focus_areas": list(dict.fromkeys(focus))[:3],
-        "summary": clean_summary(raw.get("summary", "")),
+        "summary": without_race(clean_summary(raw.get("summary", ""))),
         "confidence": max(0.0, min(1.0, float(raw.get("confidence") or 0))),
         "is_funding_announcement": bool(raw.get("is_funding_announcement")),
         "funding": None,

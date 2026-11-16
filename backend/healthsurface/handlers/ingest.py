@@ -308,7 +308,7 @@ def ingest_brief(report: dict) -> None:
     if not invoke:
         return
     recent = [s for s in sorted(store.scan_all(store.news), key=lambda s: s.get("date") or "", reverse=True)
-              if s.get("classifier") == "model"][:25]
+              if s.get("classifier") == "model" and not classify.is_blocked_story(s.get("title"), s.get("summary"))][:25]
     bullets = classify.todays_brief(recent, invoke)
     store.put_meta("brief", {"date": today, "bullets": bullets})
     report["brief"] = len(bullets)
@@ -434,7 +434,24 @@ def ingest_retire_sectors(report: dict) -> None:
     report["retired_sectors"] = counts
 
 
-STAGES = {"retire_sectors": ingest_retire_sectors, "news": ingest_news, "retag": retag_news, "funding": ingest_funding, "jobs": ingest_jobs, "brief": ingest_brief,
+def ingest_news_cleanup(report: dict) -> None:
+    """Applies the topic rules to stored stories (NAD-68): blocked headlines are deleted, race sentences
+    come out of summaries, and today's In Focus picks are rebuilt if one of them broke a rule."""
+    rows = store.scan_all(store.news)
+    drop = [r["id"] for r in rows if classify.is_blocked_story(r.get("title"))]
+    trimmed = [{**r, "summary": classify.without_race(r["summary"])} for r in rows
+               if r["id"] not in drop and r.get("summary") and classify.without_race(r["summary"]) != r["summary"]]
+    store.delete_many(store.news, drop)
+    store.put_many(store.news, trimmed)
+    brief = store.get_meta("brief") or {}
+    stale = any(classify.is_blocked_story(b.get("title"), b.get("text")) or classify.RACE_RE.search(b.get("text") or "")
+                for b in brief.get("bullets", []))
+    if stale:
+        store.put_meta("brief", {**brief, "date": "rebuild"})  # ingest_brief builds a fresh one
+    report["news_cleanup"] = {"removed": len(drop), "trimmed": len(trimmed), "brief_rebuilt": stale}
+
+
+STAGES = {"retire_sectors": ingest_retire_sectors, "news_cleanup": ingest_news_cleanup, "news": ingest_news, "retag": retag_news, "funding": ingest_funding, "jobs": ingest_jobs, "brief": ingest_brief,
           "summary": ingest_summary, "ticker": ingest_ticker}
 
 
