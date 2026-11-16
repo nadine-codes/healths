@@ -1,0 +1,154 @@
+<!doctype html>
+<!-- HealthSurface social banner. Open with ?w=1584&h=396 (LinkedIn) or ?w=1500&h=500 (X). Add &theme=light or &theme=paper for the light versions. Use ?w=1200&h=200 for the LinkedIn company page cover. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HealthSurface banner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,700;1,6..72,400&family=Inter:wght@600;700&display=swap">
+<style>
+  :root { --band: #0f1312; --text: #f4f4f1; --muted: #a9b0ad; --accent: #2fb8a0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; overflow: hidden; }
+  #stage { position: relative; overflow: hidden; background: var(--band); }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .copy { position: absolute; color: var(--text); }
+  .name { margin: 0; font: 700 var(--name)/1 "Newsreader", serif; letter-spacing: -0.02em; }
+  .tag { margin: 12px 0 0; font: italic 400 var(--tag)/1.25 "Newsreader", serif; color: var(--text); }
+  .url { margin: 14px 0 0; font: 700 var(--url)/1 "Inter", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+  .chip { position: absolute; transform: translate(-50%, -100%); white-space: nowrap;
+    font: 600 var(--chip)/1 "Inter", sans-serif; color: var(--text);
+    background: var(--band); border: 1.5px solid var(--c); border-radius: 999px; padding: 8px 14px 8px 12px; }
+  .chip i { display: inline-block; width: .62em; height: .62em; border-radius: 50%; background: var(--c); margin-right: 8px; vertical-align: .04em; }
+  .cover .tag { margin-top: 8px; }
+  .cover .tag br { display: none; }
+  .cover .url { margin-top: 10px; }
+  .cover .chip { padding: 5px 10px 5px 8px; border-width: 1px; }
+  .cover .chip i { margin-right: 6px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div class="copy" id="copy">
+    <h1 class="name">HealthSurface</h1>
+    <p class="tag">Health news, funding and jobs, <br>labeled by source type.</p>
+    <p class="url">healthsurface.com</p>
+  </div>
+</div>
+<script>
+const q = new URLSearchParams(location.search);
+const W = +q.get('w') || 1584, H = +q.get('h') || 396;
+const wide = W / H > 3.5;
+const cover = W / H > 5; // LinkedIn company page: very short, logo overlaps the bottom left.
+// Label colours run in the same order as peaks below. Light themes use the site's own label colours.
+const siteLabels = [[31,79,191],[28,122,62],[122,47,143],[154,88,0],[91,91,91]];
+const themes = {
+  dark:  { bg: [15,19,18],    text: '#f4f4f1', accent: '#2fb8a0', base: [47,184,160], lineA: .16, lineB: .3 },
+  light: { bg: [255,255,255], text: '#111111', accent: '#0b6e5f', base: [11,110,95],  lineA: .22, lineB: .34, labels: siteLabels },
+  paper: { bg: [246,245,241], text: '#111111', accent: '#0b6e5f', base: [11,110,95],  lineA: .22, lineB: .34, labels: siteLabels },
+};
+const T = themes[q.get('theme')] || themes.dark;
+const bg = `rgb(${T.bg})`;
+const stage = document.getElementById('stage');
+stage.style.width = W + 'px'; stage.style.height = H + 'px';
+const S = document.documentElement.style;
+S.setProperty('--band', bg);
+S.setProperty('--text', T.text);
+S.setProperty('--accent', T.accent);
+S.setProperty('--name', (cover ? 57 : wide ? 76 : 80) + 'px');
+S.setProperty('--tag', (cover ? 20 : wide ? 28 : 30) + 'px');
+S.setProperty('--url', (cover ? 14 : wide ? 19 : 20) + 'px');
+S.setProperty('--chip', (cover ? 14 : 20) + 'px');
+if (cover) document.body.classList.add('cover');
+const copy = document.getElementById('copy');
+copy.style.left = (cover ? 266 : wide ? 400 : 392) + 'px';
+copy.style.top = (cover ? 40 : wide ? 84 : 134) + 'px';
+
+// Five peaks, one per source type. u = position across the canvas, v = depth (0 far, 1 near).
+const peaks = [
+  { label: 'Regulatory action',   rgb: [111,155,255], u: .72, v: .30, a: 1.00 },
+  { label: 'Peer-reviewed study', rgb: [ 79,201,138], u: .89, v: .22, a: 1.12 },
+  { label: 'Preprint',            rgb: [199,123,220], u: .80, v: .58, a: .86 },
+  { label: 'Press release',       rgb: [240,166, 60], u: .925, v: .66, a: .86 },
+  { label: 'Reported news',       rgb: [190,194,192], u: .72, v: .86, a: .56 },
+];
+if (T.labels) peaks.forEach((p, i) => { p.rgb = T.labels[i]; });
+if (cover) Object.assign(peaks[0], { u: .68, v: .34 }) && Object.assign(peaks[1], { u: .875, v: .24 })
+  && Object.assign(peaks[2], { u: .785, v: .62 }) && Object.assign(peaks[3], { u: .925, v: .72 })
+  && Object.assign(peaks[4], { u: .685, v: .92, a: .5 });
+const base = T.base;
+const ROWS = cover ? 26 : wide ? 46 : 54, STEP = cover ? 1 : 3;
+const horizon = H * (cover ? .42 : wide ? .34 : .38), bottom = H * 1.04, amp = H * (cover ? .29 : .30);
+const sig = .04;
+
+function field(u, v) {
+  let h = .035 * Math.sin(u * 19 + v * 7) + .03 * Math.sin(u * 41 - v * 13) + .05;
+  let w = 0, col = [0,0,0];
+  for (const p of peaks) {
+    const du = (u - p.u) / sig, dv = (v - p.v) / .11;
+    const g = Math.exp(-(du*du + dv*dv) / 2);
+    h += p.a * g; w += g;
+    for (let i = 0; i < 3; i++) col[i] += p.rgb[i] * g;
+  }
+  const m = Math.min(1, w * 1.5);
+  const rgb = w > 0 ? col.map((c, i) => base[i] * (1 - m) + (c / w) * m) : base;
+  return { h: Math.max(0, h), rgb, m };
+}
+const rowY = v => horizon + (bottom - horizon) * Math.pow(v, 1.35);
+const scale = v => .5 + .5 * v;
+const pointY = (u, v) => rowY(v) - field(u, v).h * amp * scale(v);
+
+const cv = document.getElementById('c'), dpr = window.devicePixelRatio || 1;
+cv.width = W * dpr; cv.height = H * dpr;
+const x = cv.getContext('2d'); x.scale(dpr, dpr);
+x.fillStyle = bg; x.fillRect(0, 0, W, H);
+const LW = cover ? .8 : 1.5;
+x.lineWidth = LW; x.lineJoin = 'round';
+
+for (let r = 0; r <= ROWS; r++) {
+  const v = r / ROWS;
+  const pts = [];
+  for (let px = -STEP; px <= W + STEP; px += STEP) pts.push([px, pointY(px / W, v)]);
+  // Fill below the line so nearer ridges hide farther ones.
+  x.beginPath(); x.moveTo(pts[0][0], H + 10);
+  for (const p of pts) x.lineTo(p[0], p[1]);
+  x.lineTo(W + STEP, H + 10); x.closePath();
+  x.fillStyle = bg; x.fill();
+  for (let i = 1; i < pts.length; i++) {
+    const u = pts[i][0] / W, f = field(u, v);
+    const alpha = (T.lineA + T.lineB * v) + f.m * .6;
+    x.strokeStyle = `rgba(${f.rgb.map(Math.round).join(',')},${Math.min(1, alpha)})`;
+    x.beginPath(); x.moveTo(pts[i-1][0], pts[i-1][1]); x.lineTo(pts[i][0], pts[i][1]); x.stroke();
+  }
+}
+
+// Fade the ridges under the copy so the type stays clean.
+const cx0 = parseFloat(copy.style.left);
+const fx0 = cx0 - (cover ? 60 : 100), fx1 = cx0 + (cover ? 500 : 660);
+const fade = x.createLinearGradient(fx0, 0, fx1, 0);
+fade.addColorStop(0, `rgba(${T.bg},0)`);
+fade.addColorStop(.13, `rgba(${T.bg},.95)`);
+fade.addColorStop(.68, `rgba(${T.bg},.95)`);
+fade.addColorStop(1, `rgba(${T.bg},0)`);
+x.fillStyle = fade; x.fillRect(fx0, 0, fx1 - fx0, H);
+
+// Label each peak.
+for (const p of peaks) {
+  const px = p.u * W;
+  // Anchor to the visible crest: nearer rows can rise above the peak's own row.
+  let py = H;
+  for (let r = 0; r <= ROWS; r++) if (Math.abs(r / ROWS - p.v) < .2) py = Math.min(py, pointY(p.u, r / ROWS));
+  const lift = cover ? 10 : H * .05;
+  const c = `rgb(${p.rgb.join(',')})`;
+  x.strokeStyle = c; x.lineWidth = LW;
+  x.beginPath(); x.moveTo(px, py); x.lineTo(px, py - lift); x.stroke();
+  x.fillStyle = c; x.beginPath(); x.arc(px, py, cover ? 2.5 : 4, 0, 7); x.fill();
+  const el = document.createElement('div');
+  el.className = 'chip'; el.style.setProperty('--c', c);
+  el.style.left = px + 'px'; el.style.top = (py - lift) + 'px';
+  el.innerHTML = '<i></i>' + p.label;
+  stage.appendChild(el);
+}
+</script>
+</body>
+</html>
