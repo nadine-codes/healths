@@ -46,3 +46,28 @@ def test_ticker_items_newest_big_rounds_and_headlines():
     assert [r["source_url"] for r in t["funding"]] == ["u2"]  # newest A only; $1 placeholder left out
     assert [r["title"] for r in t["news"]] == ["new", "old"]
     assert set(t["funding"][0]) == {"company", "amount_usd", "source_kind", "source_url"}
+
+
+def test_news_funding_skips_government_and_old_stories():
+    from datetime import date
+    today = date(2026, 11, 16)
+    assert ingest.story_can_be_funding({"source": "the_conversation", "date": "2026-11-10"}, today)
+    assert not ingest.story_can_be_funding({"source": "cms_newsroom", "date": "2026-11-10"}, today)
+    assert not ingest.story_can_be_funding({"source_name": "CMS Newsroom", "date": "2026-11-10"}, today)
+    assert not ingest.story_can_be_funding({"source": "the_conversation", "date": "2020-07-22"}, today)
+
+
+def test_funding_cleanup_drops_noise_and_resorts_grants():
+    from datetime import date
+    rows = [
+        {"id": "formd#1", "source_kind": "SEC Form D", "company": "Life Impact Partners 14 LLC"},
+        {"id": "formd#2", "source_kind": "SEC Form D", "company": "Nanopath Inc"},
+        {"id": "news#x", "source_kind": "News story", "source_name": "CMS Newsroom", "date": "2020-07-22"},
+        {"id": "nih#1", "source_kind": "NIH SBIR grant", "sector": "Life Sciences and Biotech",
+         "project_title": "A wearable device for COPD"},
+        {"id": "nih#2", "source_kind": "NIH SBIR grant", "sector": "Life Sciences and Biotech",
+         "project_title": "Gene delivery for muscle disease"},
+    ]
+    drop, resort = ingest.funding_cleanup(rows, date(2026, 11, 16))
+    assert drop == ["formd#1", "news#x"]
+    assert [(r["id"], r["sector"]) for r in resort] == [("nih#1", "Med Tech")]

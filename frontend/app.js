@@ -32,6 +32,13 @@ const fmtMoney = (n) => {
   return `$${n}`;
 };
 
+// "YYYY-MM-DD" for n days before today, in the reader's time zone, to compare with item dates.
+const daysAgo = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 async function getJSON(path) {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`${path}: ${res.status}`);
@@ -86,6 +93,7 @@ const VIEWS = {
     filter(items, f) {
       return items.filter((i) => {
         if (!matchesTags(i, f)) return false;
+        if (f.days && (i.date || "") < daysAgo(Number(f.days))) return false;
         if (f.stage === "none" ? i.round_stage : f.stage && i.round_stage !== f.stage) return false;
         if (f.kind && i.source_kind !== f.kind) return false;
         if (f.amount === "unknown") return i.amount_usd == null;
@@ -97,14 +105,14 @@ const VIEWS = {
       });
     },
     card(i) {
-      const facts = [i.project_title ? `Project: ${i.project_title}` : null, i.round_stage,
+      const facts = [i.headline || null, i.project_title ? `Project: ${i.project_title}` : null, i.round_stage,
         i.investors?.length ? (i.round_stage === "Grant" ? "Funder: " : "Investors: ") + i.investors.join(", ") : null,
         i.offering_amount_usd ? `Total offering ${fmtMoney(i.offering_amount_usd)}` : null].filter(Boolean);
       const formD = i.source_kind === "SEC Form D";
       return `<li class="row">
         <div>
           <div class="eyebrow">${esc(i.source_kind)}${i.industry ? " · " + esc(i.industry) : ""}</div>
-          <h3>${esc(i.company)}</h3>
+          <h3>${esc(i.company)}${i.ticker ? ` <span class="ticker-symbol">${esc(i.ticker)}</span>` : ""}</h3>
           ${facts.length ? `<p class="facts">${esc(facts.join(" · "))}</p>` : ""}
           ${byline(`<time>${fmtDate(i.date)}</time>`, esc(i.state || ""), `<span class="src">${extLink(i.source_url, "View source: " + esc(i.source_name))}</span>`)}
           ${tagLine(i)}
@@ -285,7 +293,15 @@ function renderRadar(items) {
     <figcaption>
       <h3>Where the money is going</h3>
       <p>Share of disclosed dollars and of deals in each sector, for the funding listed below. It follows your filters, except Sector, which it highlights. Rings are spaced by area, so small sectors stay visible.</p>
-      <ul class="radar-legend"><li><span class="key usd"></span>Dollars (${fmtMoney(usd)} disclosed)</li><li><span class="key deals"></span>Deals (${deals})</li></ul>
+      <div class="radar-legend" role="group" aria-label="Key">
+        <span class="radar-legend-title">Key</span>
+        <ul>
+          <li><svg class="key" viewBox="0 0 32 18" aria-hidden="true"><path class="radar-usd" d="M3 15 L16 4 L29 15 Z"/><circle class="dot-usd" cx="16" cy="4" r="3.5"/></svg>
+            <span><b>Dollars</b> share of ${fmtMoney(usd)} disclosed</span></li>
+          <li><svg class="key" viewBox="0 0 32 18" aria-hidden="true"><path class="radar-deals" d="M2 9 H30"/><circle class="dot-deals" cx="16" cy="9" r="3.5"/></svg>
+            <span><b>Deals</b> share of ${deals} deals</span></li>
+        </ul>
+      </div>
     </figcaption>
     <div class="radar-body">
       <svg viewBox="0 44 440 352" role="img" aria-label="Radar chart of funding share by sector. The table next to it lists the same numbers.">
@@ -574,10 +590,13 @@ async function init() {
     if (form.seniority) fillSelect(form.seniority, t.seniority || [], "Any level");
     const name = form.dataset.for;
     const reset = document.querySelector(`[data-reset="${name}"]`);
-    const syncReset = () => { reset.disabled = ![...new FormData(form).values()].some(Boolean); };
+    const isDefault = (el) => (el.tagName === "SELECT"
+      ? el.value === ([...el.options].find((o) => o.defaultSelected) || el.options[0] || {}).value
+      : el.value === el.defaultValue);
+    const syncReset = () => { reset.disabled = [...form.elements].filter((el) => el.name).every(isDefault); };
     form.addEventListener("input", () => { state.shown[name] = PAGE; render(name); syncReset(); });
     reset.addEventListener("click", () => {
-      form.reset();  // back to each dropdown's "All" option and an empty search
+      form.reset();  // back to each dropdown's default ("All", or Last 90 days for funding dates) and an empty search
       state.shown[name] = PAGE;
       render(name);
       syncReset();

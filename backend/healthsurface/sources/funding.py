@@ -51,6 +51,15 @@ def search_filings(days: int = 14) -> list[dict]:
     return list(found.values())
 
 
+# Investment funds, physician-owned partnerships (surgery and endoscopy centers) and numbered
+# investment vehicles file Form D too. They are not companies raising a round, so they're left out.
+NOT_A_COMPANY = re.compile(r"\bfunds?\b|\bL\.?\s?P\.?$|\s(?:[IVX]+|\d+),?\s+LLC$|\bpartners\b.*\bLLC$", re.I)
+
+
+def is_investment_vehicle(name: str, entity_type: str = "") -> bool:
+    return entity_type == "Limited Partnership" or bool(NOT_A_COMPANY.search(name.strip().rstrip(".")))
+
+
 def _text(root: ET.Element, tag: str) -> str:
     node = root.find(f".//{tag}")
     return (node.text or "").strip() if node is not None and node.text else ""
@@ -68,6 +77,7 @@ def parse_form_d(xml_bytes: bytes) -> dict:
     root = ET.fromstring(xml_bytes)
     return {
         "company": _text(root, "entityName"),
+        "entity_type": _text(root, "entityType"),
         "industry": _text(root, "industryGroupType"),
         "amount_sold": _money(_text(root, "totalAmountSold")),
         "offering_amount": _money(_text(root, "totalOfferingAmount")),
@@ -85,6 +95,8 @@ def to_record(filing: dict, form: dict) -> dict | None:
     if not sector or form["is_amendment"] or not form["company"]:
         return None
     name = re.sub(r"\s+", " ", form["company"]).strip()
+    if is_investment_vehicle(name, form.get("entity_type", "")):
+        return None
     focus = [f for f, rx in classify.FOCUS_KEYWORDS if re.search(rx, name, re.I)][:3]
     return {
         "id": f"formd#{filing['adsh']}",

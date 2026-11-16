@@ -385,11 +385,14 @@ li:has(> .more) { grid-column: 1 / -1; }
 .radar { --usd: #0f8a74; --deals: #1f4fbf; margin: 8px 0 4px; padding: 20px 0 24px; border-bottom: 1px solid var(--rule); }
 .radar figcaption h3 { margin: 0 0 4px; font: 700 1.3rem/1.2 var(--serif); }
 .radar figcaption p { margin: 0; max-width: 70ch; font-size: 0.95rem; color: var(--ink-2); }
-.radar-legend { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 12px 0 0; padding: 0; list-style: none; font: 600 0.8rem/1.2 var(--sans); color: var(--ink-2); }
-.radar-legend li { display: inline-flex; align-items: center; gap: 8px; }
-.radar-legend .key { width: 22px; height: 0; border-top: 2px solid; }
-.radar-legend .key.usd { border-color: var(--usd); box-shadow: 0 4px 0 -1px color-mix(in srgb, var(--usd) 20%, transparent); }
-.radar-legend .key.deals { border-color: var(--deals); border-top-style: dashed; }
+.radar-legend { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 14px 0 0; padding: 10px 16px; border: 1.5px solid var(--rule); border-radius: 10px; background: var(--paper-2); }
+.radar-legend-title { font: 700 0.66rem/1 var(--sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-right: 16px; border-right: 1px solid var(--rule); align-self: stretch; display: flex; align-items: center; }
+.radar-legend ul { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0; padding: 0; list-style: none; font: 500 0.85rem/1.2 var(--sans); color: var(--ink-2); }
+.radar-legend li { display: inline-flex; align-items: center; gap: 10px; }
+.radar-legend b { font-weight: 700; color: var(--ink); margin-right: 4px; }
+.radar-legend .key { width: 32px; height: 18px; flex: none; overflow: visible; }
+.radar-legend .dot-usd, .radar-legend .dot-deals { stroke: var(--paper-2); }
+@media (max-width: 600px) { .radar-legend-title { border-right: 0; padding-right: 0; width: 100%; } }
 .radar-body { display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 12px 40px; align-items: center; }
 .radar svg { width: 100%; height: auto; overflow: visible; font-family: var(--sans); }
 .radar-ring { fill: none; stroke: var(--rule); stroke-width: 1; }
@@ -416,3 +419,4 @@ li:has(> .more) { grid-column: 1 / -1; }
 .radar-table tr.on th button { font-weight: 800; }
 .radar-table tr.on { background: var(--paper-2); }
 @media (max-width: 800px) { .radar-body { grid-template-columns: 1fr; } .radar svg { max-width: 440px; margin: 0 auto; display: block; } }
+.row h3 .ticker-symbol { margin-left: 6px; font: 600 0.72rem/1 var(--sans); letter-spacing: 0.06em; color: var(--muted); vertical-align: middle; }

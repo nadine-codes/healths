@@ -29,6 +29,11 @@ def _search(days: int, limit: int) -> list[dict]:
         return json.load(resp).get("results", [])
 
 
+def grant_sector(title: str) -> str:
+    """Sector from the project title (devices, AI, drugs...). Most titles name no sector: research stays Life Sciences."""
+    return classify.sector_from_text(title, "Life Sciences and Biotech")
+
+
 def to_record(r: dict) -> dict | None:
     org = (r.get("organization") or {}).get("org_name")
     if not org or not r.get("appl_id"):
@@ -48,7 +53,7 @@ def to_record(r: dict) -> dict | None:
         "source_name": "NIH RePORTER",
         "source_kind": f"NIH {program} grant",
         "project_title": title[:200],
-        "sector": "Life Sciences and Biotech",
+        "sector": grant_sector(title),
         "focus_areas": focus,
     }
 

@@ -11,6 +11,7 @@ from ..sources import funding as funding_src
 from ..sources import grants as grants_src
 from ..sources import jobs as jobs_src
 from ..sources import news as news_src
+from ..sources import offerings as offerings_src
 from . import bedrock, store, voice
 
 log = logging.getLogger()
@@ -71,7 +72,7 @@ def ingest_news(report: dict) -> list[dict]:
                    confidence=result["confidence"], classifier=method, is_funding=result["is_funding_announcement"],
                    ingested_at=now, prompt_v=PROMPT_VERSION)
         rows.append(row)
-        if result.get("funding"):
+        if result.get("funding") and story_can_be_funding(row):
             funding_rows.append(funding_from_story(row, result["funding"]))
 
     store.put_many(store.news, rows)
@@ -113,6 +114,37 @@ def retag_news(report: dict) -> None:
     report["retag"] = {"stale": len(stale), "live": sum(r["id"] in live for r in stale)}
 
 
+# Government newsrooms announce payments and grants to providers, not companies raising money, and an
+# old story resurfacing in a feed isn't current funding news (NAD-63).
+GOVERNMENT_SOURCES = {"openfda_drugs", "openfda_devices", "cms_newsroom", "cdc_newsroom"}
+GOVERNMENT_NAMES = {config.NEWS_SOURCES[k]["name"] for k in GOVERNMENT_SOURCES if k in config.NEWS_SOURCES}
+NEWS_FUNDING_MAX_AGE = timedelta(days=90)
+
+
+def story_can_be_funding(story: dict, today=None) -> bool:
+    today = today or datetime.now(timezone.utc).date()
+    if story.get("source") in GOVERNMENT_SOURCES or story.get("source_name") in GOVERNMENT_NAMES:
+        return False
+    return (story.get("date") or "") >= str(today - NEWS_FUNDING_MAX_AGE)
+
+
+def funding_cleanup(rows: list[dict], today=None) -> tuple[list[str], list[dict]]:
+    """Stored funding rows to delete (investment vehicles, government or stale news funding) and NIH
+    grants whose sector the title-based rule now sorts differently."""
+    drop, resort = [], []
+    for r in rows:
+        kind = r.get("source_kind")
+        if kind == "SEC Form D" and funding_src.is_investment_vehicle(r.get("company", "")):
+            drop.append(r["id"])
+        elif kind == "News story" and not story_can_be_funding(r, today):
+            drop.append(r["id"])
+        elif r["id"].startswith("nih#"):
+            sector = grants_src.grant_sector(r.get("project_title", ""))
+            if sector != r.get("sector"):
+                resort.append({**r, "sector": sector})
+    return drop, resort
+
+
 def funding_from_story(story: dict, f: dict) -> dict:
     return {
         "id": f"news#{story['id']}",
@@ -130,16 +162,25 @@ def funding_from_story(story: dict, f: dict) -> dict:
 
 
 def ingest_funding(report: dict) -> None:
-    existing = {r["id"] for r in store.scan_all(store.funding, "id")}
+    stored = store.scan_all(store.funding)
+    existing = {r["id"] for r in stored}
     rows = funding_src.fetch_new(existing)
     try:
         grants = grants_src.fetch_new(existing)
     except Exception as err:  # noqa: BLE001 - grants are additive; Form D still lands
         log.warning("NIH RePORTER failed: %s", err)
         grants = []
+    try:
+        offerings = offerings_src.fetch_new([r for r in stored if r.get("source_kind") == offerings_src.KIND])
+    except Exception as err:  # noqa: BLE001 - offerings are additive too
+        log.warning("8-K offerings failed: %s", err)
+        offerings = []
     announced = funding_src.announced_rounds()
-    store.put_many(store.funding, rows + grants + announced)
-    report["funding"] = {"form_d_new": len(rows), "nih_grants_new": len(grants), "announced": len(announced)}
+    drop, resort = funding_cleanup(stored)
+    store.put_many(store.funding, rows + grants + offerings + announced + resort)
+    store.delete_many(store.funding, drop)
+    report["funding"] = {"form_d_new": len(rows), "nih_grants_new": len(grants), "offerings_new": len(offerings),
+                         "announced": len(announced), "removed": len(drop), "resorted": len(resort)}
 
 
 JOB_FIELDS = ("id", "company", "title", "url", "location", "remote", "posted", "source", "source_name",
@@ -269,6 +310,17 @@ def _spoken_money(n: float) -> str:
     return f"${n:,.0f}"
 
 
+def _funding_title(r: dict) -> str:
+    money = _spoken_money(r["amount_usd"])
+    if r["source_kind"].startswith("NIH"):
+        return f"{r['company']} was awarded a {money} {r['source_kind']}"
+    if r["source_kind"] == offerings_src.KIND:
+        what = {"IPO": "initial public offering", "Public offering": "public stock offering",
+                "Private placement": "private placement"}.get(r.get("round_stage"), "financing")
+        return f"{r['company']} announced a {money} {what} in an SEC filing"
+    return f"{r['company']} reported raising {money} in an SEC Form D filing"
+
+
 def summary_items(today) -> list[dict]:
     """Stories from the last three days plus the week's biggest SEC and NIH funding, newest first."""
     stories = sorted((s for s in store.scan_all(store.news) if s.get("classifier") == "model" and s.get("summary")
@@ -281,9 +333,7 @@ def summary_items(today) -> list[dict]:
     money = sorted((r for r in store.scan_all(store.funding) if r.get("amount_usd") and (r.get("date") or "") >= week
                     and r.get("source_kind") != "News story"),  # news funding is already in the stories
                    key=lambda r: r["amount_usd"], reverse=True)[:classify.SUMMARY_MAX_FUNDING + 1]
-    funding = [{"title": (f"{r['company']} was awarded a {_spoken_money(r['amount_usd'])} {r['source_kind']}"
-                          if r["source_kind"].startswith("NIH") else
-                          f"{r['company']} reported raising {_spoken_money(r['amount_usd'])} in an SEC Form D filing"),
+    funding = [{"title": _funding_title(r),
                 "summary": f"Project: {r['project_title']}." if r.get("project_title") else "",
                 "company": r["company"], "amount": _spoken_money(r["amount_usd"]),
                 "label": r["source_kind"], "source_name": r["source_name"], "url": r["source_url"]} for r in money]

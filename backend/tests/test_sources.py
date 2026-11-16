@@ -91,3 +91,78 @@ def test_announced_rounds_are_valid():
         assert r["source_url"].startswith("https://") and r["company"] and r["date"][:2] == "20"
         assert isinstance(r["amount_usd"], int) and r["amount_usd"] > 0
         assert r["sector"] in t["sectors"] and r["round_stage"] in t["round_stages"]
+
+
+# ---------- 8-K offerings (NAD-62) ----------
+from healthsurface.sources import grants, offerings
+
+PRICING = """5
+d1dex991.htm
+EX-99.1
+Exhibit 99.1
+Acme Bio Announces Pricing of $125 Million
+Public Offering
+BOSTON, November 12, 2026 -- Acme Bio, Inc. today announced the pricing of its underwritten public offering.
+The gross proceeds to Acme Bio from the offering are expected to be approximately $125 million."""
+
+FILING = {"adsh": "0001-26-000002", "doc": "d1dex991.htm", "cik": "0000123", "file_date": "2026-11-12",
+          "display_name": "ACME BIO INC  (ACME, ACMEW)  (CIK 0000000123)", "sics": ["2836"], "location": "Boston, MA"}
+
+
+def test_offering_headline_wraps_and_amount_comes_from_headline():
+    rec = offerings.to_record(FILING, PRICING)
+    assert rec["headline"] == "Acme Bio Announces Pricing of $125 Million Public Offering"
+    assert rec["amount_usd"] == 125e6 and rec["round_stage"] == "Public offering"
+    assert rec["company"] == "Acme Bio Inc" and rec["ticker"] == "ACME" and rec["sector"] == "Life Sciences and Biotech"
+    assert rec["id"] == "sec8k#0001-26-000002" and rec["source_kind"] == offerings.KIND
+
+
+def test_offering_amount_falls_back_to_gross_proceeds():
+    text = "Exhibit 99.1\nVir Announces Pricing of Public Offering\nSF, November 12, 2026 -- The gross proceeds are expected to be $150 million."
+    assert offerings.to_record(FILING, text)["amount_usd"] == 150e6
+
+
+def test_bullets_and_earnings_are_not_offerings():
+    bullet = "Exhibit 99.1\nAcme Reports Pipeline Progress\nCompany completed a private placement with gross proceeds of $40 million"
+    earnings = "Exhibit 99.1\nAcme Announces Third Quarter Results and Closing of Offering"
+    assert offerings.to_record(FILING, bullet) is None
+    assert offerings.to_record(FILING, earnings) is None
+
+
+def test_non_health_filers_are_skipped_and_devices_are_med_tech():
+    assert offerings.to_record({**FILING, "sics": ["6770"]}, PRICING) is None
+    assert offerings.to_record({**FILING, "sics": ["3841"]}, PRICING)["sector"] == "Med Tech"
+
+
+def test_offering_stages():
+    assert offerings.stage_for("Acme Announces Pricing of Initial Public Offering") == "IPO"
+    assert offerings.stage_for("Acme Announces $30 Million Private Placement") == "Private placement"
+    assert offerings.stage_for("Pricing of Registered Direct Offering and Concurrent Private Placement") == "Public offering"
+    assert offerings.stage_for("Acme Closes Merger and $490 Million Financing") is None
+
+
+def test_pricing_and_closing_are_one_raise():
+    a = {"company": "Acme", "round_stage": "Public offering", "date": "2026-11-12"}
+    assert offerings.same_raise(a, {**a, "date": "2026-11-14"})
+    assert not offerings.same_raise(a, {**a, "date": "2026-12-14"})
+    assert not offerings.same_raise(a, {**a, "round_stage": "Private placement"})
+
+
+def test_price_per_share_is_not_an_amount():
+    assert offerings._amount(offerings.HEADLINE_AMOUNT.search("at $10.00 per share")) is None
+
+
+def test_investment_vehicles_are_not_companies():
+    for name in ["FRONTIER MEDTECH FUND I, L.P.", "Life Impact Partners 14 LLC", "Apex ER II, LLC",
+                 "Endoscopy Center at St. Mary, LP", "HealthVest Fund V LLC"]:
+        assert funding.is_investment_vehicle(name), name
+    for name in ["Seraxis Holdings, Inc.", "Nanopath Inc", "Island Bio, LLC"]:
+        assert not funding.is_investment_vehicle(name), name
+    assert funding.is_investment_vehicle("Acme Bio", "Limited Partnership")
+
+
+def test_grant_sector_from_title():
+    assert grants.grant_sector("A Non-invasive Wearable Device for Monitoring Venous Clots") == "Med Tech"
+    assert grants.grant_sector("Artificial Intelligence Enhanced Detection of Bladder Cancer") == "Health AI"
+    assert grants.grant_sector("Scalable Non-viral Gene Delivery for Neuromuscular Diseases") == "Life Sciences and Biotech"
+    assert grants.grant_sector("Medicare policy and regulatory guidance study") != "Policy and Regulation"

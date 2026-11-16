@@ -214,6 +214,11 @@ SECTOR_KEYWORDS = [
     ("Health Tech", r"\b(app|platform|digital|startup|software|virtual)\b"),
 ]
 
+def sector_from_text(text: str, default: str) -> str:
+    """Company sector from a grant title or press-release headline. Policy is a news topic, never a raiser."""
+    return next((s for s, rx in SECTOR_KEYWORDS if s != "Policy and Regulation" and re.search(rx, text or "", re.I)), default)
+
+
 FOCUS_KEYWORDS = [
     ("Longevity and healthspan", r"\b(longevity|aging|ageing|healthspan|lifespan)\b"),
     ("Hormones", r"\b(hormone|testosterone|estrogen|menopause|thyroid)\b"),
