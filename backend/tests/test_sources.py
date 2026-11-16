@@ -166,3 +166,15 @@ def test_grant_sector_from_title():
     assert grants.grant_sector("Artificial Intelligence Enhanced Detection of Bladder Cancer") == "Health AI"
     assert grants.grant_sector("Scalable Non-viral Gene Delivery for Neuromuscular Diseases") == "Life Sciences and Biotech"
     assert grants.grant_sector("Medicare policy and regulatory guidance study") != "Policy and Regulation"
+
+
+def test_headline_keeps_split_company_name_and_drops_dateline_bits():
+    text = "EX-99.2\nExhibit\n99.2\nbioAffinity\nTechnologies, Inc. Announces Closing of $4 Million Registered Direct Financing\nSAN\nANTONIO, Oct. 9, 2026 -- body"
+    assert offerings.find_headline(text) == "bioAffinity Technologies, Inc. Announces Closing of $4 Million Registered Direct Financing"
+    text = "Exhibit 99.1\nRELEASE\nGlucotrack, Inc. Announces Pricing of $3 Million Public Offering\nRUTHERFORD,\nN.J., Sept. 24, 2026"
+    assert offerings.find_headline(text) == "Glucotrack, Inc. Announces Pricing of $3 Million Public Offering"
+
+
+def test_headline_skips_edgarfiling_exhibit_line():
+    text = "EXHIBIT 99.2\nEdgarFiling EXHIBIT 99.2\nEdesa Biotech Announces Pricing of $25.0 Million Public Offering\nTORONTO, Aug. 19, 2026 -- body"
+    assert offerings.find_headline(text) == "Edesa Biotech Announces Pricing of $25.0 Million Public Offering"

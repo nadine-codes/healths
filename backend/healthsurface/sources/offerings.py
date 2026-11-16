@@ -91,30 +91,40 @@ def plain_text(body: bytes) -> str:
     return "\n".join(x for x in lines if x)
 
 
-BOILERPLATE = re.compile(r"^(for immediate release|press release|news release|exhibit\b.*|ex-99.*|\S+\.htm|\d+)$", re.I)
-
-
+BOILERPLATE = re.compile(r"^(for immediate release|press release|news release|release|document|edgarfiling|(edgarfiling\s+)?exhibit\b.*"
+                         r"|ex-99.*|\S+\.htm|[\d.]+|on \w+day,.*)$", re.I)
+LEADING_JUNK = re.compile(r"^\W*(edgarfiling\s+)?(exhibit\s*)?(99\.\d+\s+)?", re.I)
 SMALL_WORDS = {"a", "an", "and", "at", "by", "for", "in", "of", "on", "or", "the", "to", "with"}
 
 
 def is_title_wrap(line: str) -> bool:
-    """A headline's second line, such as "Million Financing": short and in Title Case."""
+    """A headline's next line, such as "Million Financing": short and in Title Case. A dateline
+    fragment ("SAN", "RUTHERFORD,", "$4") is not one."""
     words = line.split()
+    if len(words) < 2 or line.endswith(",") or line.isupper():
+        return False
     return len(line) <= 90 and not re.search(r"\b20\d\d\b", line) and all(
         w[0].isupper() or w[0] in "$0123456789(" or w.lower() in SMALL_WORDS for w in words)
 
 
 def find_headline(text: str) -> str | None:
-    """The release's own headline: the first real line after the "Exhibit 99" marker, joined with a
-    wrapped second line. Bullets and body text further down never count."""
+    """The release's own headline: the first real line after the "Exhibit 99" marker, joined with the
+    lines it wraps onto (a company name alone on a line, or a Title Case continuation). Bullets and
+    body text further down never count."""
     lines = text.splitlines()
     start = next((i + 1 for i, x in enumerate(lines[:40]) if re.match(r"^exhibit\s*99", x, re.I)), 0)
-    body = [x for x in lines[start:start + 12] if not BOILERPLATE.match(x) and len(x.split()) >= 2]
+    body = [x for x in lines[start:start + 12] if not BOILERPLATE.match(x)]
     if not body:
         return None
-    head = body[0]
-    if len(body) > 1 and is_title_wrap(body[1]) and not re.search(r"[.!?:]$", head):
-        head = f"{head} {body[1]}"
+    head = LEADING_JUNK.sub("", body[0])
+    for nxt in body[1:4]:
+        if re.search(r"[.!?]$", head) or re.search(r"\b20\d\d\b", nxt) or len(head) + len(nxt) > 300:
+            break
+        if len(head.split()) <= 3 or is_title_wrap(nxt):
+            head = f"{head} {nxt}"
+        else:
+            break
+    head = head.strip()
     if 20 <= len(head) <= 300 and HEADLINE.search(head) and not EARNINGS.search(head):
         return head
     return None
