@@ -156,6 +156,7 @@ function render(name) {
   if (!items) return;
   const rows = VIEWS[name].filter(items, formValues(name));
   $(`[data-count="${name}"]`).textContent = `${rows.length} of ${items.length} shown`;
+  if (name === "funding") renderRadar(items);
   if (rest) rest.innerHTML = "";
   if (!rows.length) {
     list.innerHTML = `<li class="empty">${esc(items.length ? VIEWS[name].empty.replace(/ yet.*$/, ".") : VIEWS[name].empty)}</li>`;
@@ -207,6 +208,100 @@ function fillFundingFilters(rows) {
     `<option value="none"${stages.none ? "" : " disabled"}>Not stated (${stages.none || 0})</option>`;
   form.kind.innerHTML = `<option value="">All sources</option>` +
     Object.entries(kinds).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<option value="${esc(k)}">${esc(k)} (${n})</option>`).join("");
+}
+
+// ---------- Funding radar: share of disclosed dollars and of deals, by sector ----------
+// It follows every funding filter except Sector, so the other sectors stay in view for comparison;
+// the chosen sector is highlighted. Rings are spaced by square root so a polygon's area tracks its
+// share and small sectors don't vanish next to Life Sciences.
+const RADAR_SKIP = new Set(["Policy and Regulation"]);  // a news topic, not something companies raise money in
+const RADAR_RINGS = [0.05, 0.1, 0.25, 0.5, 0.75, 1];
+
+function radarLabel(text, x, y, anchor, on) {
+  const words = text.split(" ");
+  const lines = [];
+  for (const w of words) {
+    const last = lines[lines.length - 1];
+    if (last && (last + " " + w).length <= 14) lines[lines.length - 1] = last + " " + w; else lines.push(w);
+  }
+  const y0 = y - ((lines.length - 1) * 13) / 2;
+  return `<text x="${x}" y="${y0}" text-anchor="${anchor}" class="radar-axis${on ? " on" : ""}">${lines.map((l, i) => `<tspan x="${x}" dy="${i ? 13 : 0}">${esc(l)}</tspan>`).join("")}</text>`;
+}
+
+function renderRadar(items) {
+  const fig = $("#funding-radar");
+  const f = formValues("funding");
+  const rows = VIEWS.funding.filter(items, { ...f, sector: "" });
+  const sectors = (state.meta.taxonomy.sectors || []).filter((s) => !RADAR_SKIP.has(s));
+  if (!rows.length || sectors.length < 3) { fig.hidden = true; return; }
+  const by = Object.fromEntries(sectors.map((s) => [s, { usd: 0, deals: 0 }]));
+  let usd = 0;
+  for (const r of rows) {
+    const b = by[r.sector];
+    if (!b) continue;
+    b.deals += 1;
+    if (r.amount_usd != null) { b.usd += r.amount_usd; usd += r.amount_usd; }
+  }
+  const deals = Object.values(by).reduce((n, b) => n + b.deals, 0);
+  const stats = sectors.map((s) => ({ s, ...by[s], pu: usd ? by[s].usd / usd : 0, pd: deals ? by[s].deals / deals : 0 }));
+
+  const C = 220, R = 130, n = stats.length;
+  // The outer ring is the smallest step that holds the biggest share, so the shape fills the chart.
+  const top = Math.max(...stats.map((d) => Math.max(d.pu, d.pd)));
+  const cap = RADAR_RINGS.find((v) => v >= top - 1e-9) ?? 1;
+  const rings = RADAR_RINGS.filter((v) => v <= cap);
+  const ang = (i) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
+  const at = (a, share) => { const r = R * Math.sqrt(share / cap); return [C + r * Math.cos(a), C + r * Math.sin(a)]; };
+  const pt = (i, share) => at(ang(i), share);
+  const poly = (key) => stats.map((d, i) => pt(i, d[key]).map((v) => v.toFixed(1)).join(",")).join(" ");
+  const pct = (v) => (v > 0 && v < 0.01 ? "<1%" : `${Math.round(v * 100)}%`);
+  const tip = (d) => `${d.s}: ${fmtMoney(d.usd)} disclosed (${pct(d.pu)} of dollars), ${d.deals} deal${d.deals === 1 ? "" : "s"} (${pct(d.pd)})`;
+
+  // Ring values sit halfway between the first two spokes, clear of both.
+  const ringMarks = rings.map((v) => {
+    const [tx, ty] = at(ang(0) + Math.PI / n, v);
+    return `<polygon class="radar-ring" points="${stats.map((_, i) => pt(i, v).join(",")).join(" ")}"/>
+      <text class="radar-tick" x="${tx.toFixed(1)}" y="${(ty - 3).toFixed(1)}">${Math.round(v * 100)}%</text>`;
+  }).join("");
+  const spokes = stats.map((d, i) => {
+    const [x, y] = pt(i, cap);
+    const lx = C + (R + 16) * Math.cos(ang(i)), ly = C + (R + 16) * Math.sin(ang(i));
+    const c = Math.cos(ang(i));
+    const anchor = Math.abs(c) < 0.2 ? "middle" : c > 0 ? "start" : "end";
+    const dy = Math.abs(c) < 0.2 ? (Math.sin(ang(i)) < 0 ? -8 : 10) : 4;
+    return `<line class="radar-spoke" x1="${C}" y1="${C}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>
+      ${radarLabel(d.s, lx.toFixed(1), (ly + dy).toFixed(1), anchor, f.sector === d.s)}`;
+  }).join("");
+  const dots = (key, cls) => stats.map((d, i) => { const [x, y] = pt(i, d[key]); return `<circle class="${cls}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"/>`; }).join("");
+  // One wedge-shaped hover target per sector, bigger than the marks.
+  const hits = stats.map((d, i) => {
+    const a0 = ang(i) - Math.PI / n, a1 = ang(i) + Math.PI / n, r = R + 30;
+    return `<path class="radar-hit" data-sector="${esc(d.s)}" d="M${C},${C} L${(C + r * Math.cos(a0)).toFixed(1)},${(C + r * Math.sin(a0)).toFixed(1)} A${r},${r} 0 0 1 ${(C + r * Math.cos(a1)).toFixed(1)},${(C + r * Math.sin(a1)).toFixed(1)} Z"><title>${esc(tip(d))}</title></path>`;
+  }).join("");
+
+  const ranked = [...stats].sort((a, b) => b.usd - a.usd || b.deals - a.deals);
+  fig.hidden = false;
+  fig.innerHTML = `
+    <figcaption>
+      <h3>Where the money is going</h3>
+      <p>Share of disclosed dollars and of deals in each sector, for the funding listed below. It follows your filters, except Sector, which it highlights. Rings are spaced by area, so small sectors stay visible.</p>
+      <ul class="radar-legend"><li><span class="key usd"></span>Dollars (${fmtMoney(usd)} disclosed)</li><li><span class="key deals"></span>Deals (${deals})</li></ul>
+    </figcaption>
+    <div class="radar-body">
+      <svg viewBox="0 44 440 352" role="img" aria-label="Radar chart of funding share by sector. The table next to it lists the same numbers.">
+        ${ringMarks}${spokes}
+        <polygon class="radar-usd" points="${poly("pu")}"/>
+        <polygon class="radar-deals" points="${poly("pd")}"/>
+        ${dots("pu", "dot-usd")}${dots("pd", "dot-deals")}${hits}
+      </svg>
+      <table class="radar-table">
+        <thead><tr><th scope="col">Sector</th><th scope="col">Dollars</th><th scope="col">Deals</th></tr></thead>
+        <tbody>${ranked.map((d) => `<tr${f.sector === d.s ? ' class="on"' : ""}>
+          <th scope="row"><button type="button" data-radar-sector="${esc(d.s)}" ${d.deals ? "" : "disabled"} title="${f.sector === d.s ? "Show all sectors" : "Show only this sector"}">${esc(d.s)}</button></th>
+          <td>${d.usd ? fmtMoney(d.usd) : "–"} <span>${pct(d.pu)}</span></td>
+          <td>${d.deals} <span>${pct(d.pd)}</span></td></tr>`).join("")}</tbody>
+      </table>
+    </div>`;
 }
 
 // Country options come from the data, most common first, plus jobs with no stated country.
@@ -503,6 +598,13 @@ async function init() {
   document.addEventListener("click", (e) => {
     const more = e.target.closest("[data-more]");
     if (more) { state.shown[more.dataset.more] += PAGE; render(more.dataset.more); }
+    const sectorBtn = e.target.closest("[data-radar-sector]");
+    if (sectorBtn) {
+      const form = $('form[data-for="funding"]');
+      form.sector.value = form.sector.value === sectorBtn.dataset.radarSector ? "" : sectorBtn.dataset.radarSector;
+      form.dispatchEvent(new Event("input"));  // same path as a dropdown change: re-render and update Reset
+      $(`[data-radar-sector="${CSS.escape(sectorBtn.dataset.radarSector)}"]`)?.focus();  // the table was redrawn
+    }
     const listen = e.target.closest("[data-listen]");
     if (listen) toggleListen(listen);
     const pick = e.target.closest("[data-focus]");
