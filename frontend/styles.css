@@ -289,7 +289,7 @@ button { font: inherit; }
 /* ---------- Lists ---------- */
 .list { list-style: none; margin: 0; padding: 0; }
 .kicker {
-  display: inline-flex; align-items: center; gap: 6px; cursor: help;
+  display: inline-flex; align-items: center; gap: 6px; cursor: default;
   font: 800 0.7rem/1 var(--sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--l-news);
 }
 .kicker::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
@@ -405,7 +405,7 @@ li:has(> .more) { grid-column: 1 / -1; }
 .dot-usd, .dot-deals { stroke: var(--paper); stroke-width: 2; }
 .dot-usd { fill: var(--usd); }
 .dot-deals { fill: var(--deals); }
-.radar-hit { fill: transparent; cursor: help; }
+.radar-hit { fill: transparent; cursor: default; }
 .radar-hit:hover { fill: color-mix(in srgb, var(--ink) 4%, transparent); }
 .radar-table { width: 100%; border-collapse: collapse; font: 500 0.85rem/1.3 var(--sans); }
 .radar-table th, .radar-table td { padding: 7px 0; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }

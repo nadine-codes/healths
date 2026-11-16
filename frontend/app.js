@@ -282,18 +282,12 @@ function renderRadar(items) {
   const pct = (v) => (v > 0 && v < 0.01 ? "<1%" : `${Math.round(v * 100)}%`);
   const tip = (d) => `${d.s}: ${fmtMoney(d.usd)} disclosed (${pct(d.pu)} of dollars), ${d.deals} deal${d.deals === 1 ? "" : "s"} (${pct(d.pd)})`;
 
-  // Ring values go in the emptiest gap: between the two neighbouring spokes with the smallest shares,
-  // where the data stays near the centre. Each label sits just outside its ring's edge.
-  const peak = (i) => Math.max(stats[i % n].pu, stats[i % n].pd);
-  const gap = stats.map((_, i) => i).reduce((best, i) =>
-    (Math.max(peak(i), peak(i + 1)) < Math.max(peak(best), peak(best + 1)) ? i : best), 0);
-  const tickAng = ang(gap) + Math.PI / n, tc = Math.cos(tickAng), ts = Math.sin(tickAng);
-  const tickAnchor = Math.abs(tc) < 0.3 ? "middle" : tc > 0 ? "start" : "end";
-  const ringMarks = rings.map((v) => {
-    const r = R * Math.sqrt(v / cap) * Math.cos(Math.PI / n) + 6;  // edge midpoint of the ring, plus a gap
-    const tx = C + r * tc, ty = C + r * ts + (Math.abs(tc) < 0.3 ? (ts > 0 ? 8 : -2) : 3);
-    return `<polygon class="radar-ring" points="${stats.map((_, i) => pt(i, v).join(",")).join(" ")}"/>
-      <text class="radar-tick" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${tickAnchor}">${Math.round(v * 100)}%</text>`;
+  // Ring values run up the top spoke, just right of it, and are drawn over the data with a halo
+  // so a line crossing them never hides a number.
+  const ringMarks = rings.map((v) => `<polygon class="radar-ring" points="${stats.map((_, i) => pt(i, v).join(",")).join(" ")}"/>`).join("");
+  const tickMarks = rings.map((v) => {
+    const [x, y] = pt(0, v);
+    return `<text class="radar-tick" x="${(x + 5).toFixed(1)}" y="${(y + 3).toFixed(1)}">${Math.round(v * 100)}%</text>`;
   }).join("");
   const spokes = stats.map((d, i) => {
     const [x, y] = pt(i, cap);
@@ -332,7 +326,7 @@ function renderRadar(items) {
         ${ringMarks}${spokes}
         <polygon class="radar-usd" points="${poly("pu")}"/>
         <polygon class="radar-deals" points="${poly("pd")}"/>
-        ${dots("pu", "dot-usd")}${dots("pd", "dot-deals")}${hits}
+        ${dots("pu", "dot-usd")}${dots("pd", "dot-deals")}${tickMarks}${hits}
       </svg>
       <table class="radar-table">
         <thead><tr><th scope="col">Group</th><th scope="col">Dollars</th><th scope="col">Deals</th></tr></thead>
