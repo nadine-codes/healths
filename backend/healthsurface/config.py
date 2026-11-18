@@ -36,9 +36,6 @@ NEWS_SOURCES = {
     "medrxiv": {"name": "medRxiv", "label": "Preprint", "free_to_read": True, "commercial": False},
     "pubmed": {"name": "PubMed", "label": "Peer-reviewed study", "free_to_read": True, "commercial": False},
     # Open-license newsrooms. We show only headline, link, date and our own summary, credited by name.
-    "the_conversation": {"name": "The Conversation", "label": "Reported news", "free_to_read": True, "commercial": False,
-                         "feed": "https://theconversation.com/us/health/articles.atom",
-                         "terms": "CC BY-ND 4.0 (theconversation.com/us/republishing-guidelines)"},
     "cms_newsroom": {"name": "CMS Newsroom", "label": "Press release", "free_to_read": True, "commercial": False,
                      "feed": "https://www.cms.gov/newsroom/rss-feeds", "terms": "US government work, public domain"},
     "cdc_newsroom": {"name": "CDC Newsroom", "label": "Press release", "free_to_read": True, "commercial": False,

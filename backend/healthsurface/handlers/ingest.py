@@ -435,16 +435,20 @@ def ingest_retire_sectors(report: dict) -> None:
 
 
 def ingest_news_cleanup(report: dict) -> None:
-    """Applies the topic rules to stored stories (NAD-68): blocked headlines are deleted, race sentences
-    come out of summaries, and today's In Focus picks are rebuilt if one of them broke a rule."""
+    """Applies the topic rules to stored stories (NAD-68): blocked headlines and stories from sources we
+    no longer read (NAD-69) are deleted, race sentences come out of summaries, and today's In Focus picks
+    are rebuilt if one of them broke a rule."""
     rows = store.scan_all(store.news)
-    drop = [r["id"] for r in rows if classify.is_blocked_story(r.get("title"))]
+    gone = {r["id"]: r.get("url") for r in rows if r.get("source") not in config.NEWS_SOURCES}
+    gone_urls = set(gone.values())
+    drop = [r["id"] for r in rows if r["id"] in gone or classify.is_blocked_story(r.get("title"))]
     trimmed = [{**r, "summary": classify.without_race(r["summary"])} for r in rows
                if r["id"] not in drop and r.get("summary") and classify.without_race(r["summary"]) != r["summary"]]
     store.delete_many(store.news, drop)
     store.put_many(store.news, trimmed)
     brief = store.get_meta("brief") or {}
     stale = any(classify.is_blocked_story(b.get("title"), b.get("text")) or classify.RACE_RE.search(b.get("text") or "")
+                or b.get("url") in gone_urls
                 for b in brief.get("bullets", []))
     if stale:
         store.put_meta("brief", {**brief, "date": "rebuild"})  # ingest_brief builds a fresh one

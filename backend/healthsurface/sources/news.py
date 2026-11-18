@@ -167,26 +167,6 @@ def fetch_pubmed(days: int = 3, limit: int = 30) -> list[dict]:
     return items
 
 
-ATOM = "{http://www.w3.org/2005/Atom}"
-
-
-def fetch_atom(source: str, url: str, limit: int = 20) -> list[dict]:
-    status, body = http.get(url)
-    if status != 200:
-        raise RuntimeError(f"HTTP {status} for {url}")
-    items = []
-    for entry in ET.fromstring(body).iter(f"{ATOM}entry"):
-        link = next((l.get("href") for l in entry.findall(f"{ATOM}link") if l.get("rel", "alternate") == "alternate"), None)
-        if not link:
-            continue
-        items.append(make_item(source, link, entry.findtext(f"{ATOM}title") or "",
-                               (entry.findtext(f"{ATOM}published") or entry.findtext(f"{ATOM}updated") or "")[:10],
-                               entry.findtext(f"{ATOM}summary") or ""))
-        if len(items) >= limit:
-            break
-    return items
-
-
 def fetch_cms_newsroom(limit: int = 20) -> list[dict]:
     """CMS packs an HTML anchor into <link> and leaves <title> empty; unpack both."""
     meta = config.NEWS_SOURCES["cms_newsroom"]
@@ -256,7 +236,6 @@ FETCHERS = {
     "openfda_devices": fetch_openfda_devices,
     "medrxiv": fetch_medrxiv,
     "pubmed": fetch_pubmed,
-    "the_conversation": lambda: fetch_atom("the_conversation", config.NEWS_SOURCES["the_conversation"]["feed"]),
     "cms_newsroom": fetch_cms_newsroom,
     "cdc_newsroom": fetch_cdc_newsroom,
     **{k: (lambda k=k: fetch_commercial(k)) for k, v in config.NEWS_SOURCES.items() if v.get("commercial")},

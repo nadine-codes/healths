@@ -81,3 +81,20 @@ def test_retired_sectors_move_and_become_focus_areas():
     assert set(moved) == {"a", "b"}
     assert moved["a"]["sector"] == "Pharma" and moved["a"]["focus_areas"] == ["Diabetes", "Cardiovascular", "Peptides and GLP-1s"]
     assert moved["b"]["sector"] == "Life Sciences and Biotech" and moved["b"]["focus_areas"] == ["Supplements"]
+
+
+def test_news_cleanup_drops_stories_from_removed_sources(monkeypatch):
+    rows = [{"id": "keep", "source": "pubmed", "title": "A trial of a new sepsis test", "url": "https://p/1"},
+            {"id": "old", "source": "the_conversation", "title": "Why does your body store fat?", "url": "https://tc/2"}]
+    saved, deleted = {}, []
+    s = ingest.store
+    monkeypatch.setattr(s, "scan_all", lambda table, *a: rows)
+    monkeypatch.setattr(s, "delete_many", lambda table, ids: deleted.extend(ids))
+    monkeypatch.setattr(s, "put_many", lambda table, items: None)
+    monkeypatch.setattr(s, "get_meta", lambda key: {"date": "2026-11-17", "bullets": [{"title": "t", "text": "x", "url": "https://tc/2"}]})
+    monkeypatch.setattr(s, "put_meta", lambda key, value: saved.update({key: value}))
+    report = {}
+    ingest.ingest_news_cleanup(report)
+    assert deleted == ["old"]
+    assert saved["brief"]["date"] == "rebuild"
+    assert report["news_cleanup"]["removed"] == 1
